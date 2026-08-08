@@ -59,7 +59,7 @@ interface Settings {
   utilities: number        // Коммунальные услуги
   food: number             // Еда (базовая)
   transport: number        // Транспорт
-  credits: number          // Кредиты/ипотека
+  credits: number          // Ежемесячный платёж по кредитам/ипотеке
   customExpenses: Array<{  // Пользовательские категории расходов
     name: string
     amount: number
