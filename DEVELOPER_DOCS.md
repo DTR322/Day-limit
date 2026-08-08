@@ -2,85 +2,54 @@
 
 ## 📋 Обзор проекта
 
-**Day Limit** — Vue.js приложение для управления личным бюджетом с фокусом на дневные лимиты трат. Приложение помогает пользователям распределять свободные деньги между текущими тратами и накоплениями.
+**Day Limit** — Vue.js приложение для управления личным бюджетом с фокусом на дневные лимиты трат.
 
 ### Стек технологий
 - **Vue 3** (Composition API, `<script setup>`)
-- **Vue Router 4** (маршрутизация)
-- **Vite** (сборщик)
+- **Vue Router** (маршрутизация)
+- **Vite** (сборка)
 - **localStorage** (хранение данных)
-- **CSS Modules** (scoped стили)
 
 ---
 
 ## 🏗 Архитектура проекта
 
-### Структура файлов
-
 ```
 src/
-├── main.js                    # Точка входа приложения
-├── App.vue                    # Корневой компонент с <router-view>
-├── style.css                  # Глобальные стили
+├── App.vue                    # Корневой компонент
+├── main.js                    # Точка входа
 ├── router/
-│   └── index.js               # Конфигурация маршрутов
-├── views/                     # Страницы приложения (route-level компоненты)
-│   └── MainView.vue           # Главная страница (дневной лимит, траты)
+│   └── index.js               # Конфигурация роутера
+├── views/
+│   └── MainView.vue           # Главный экран (дневной лимит + траты)
 ├── components/
-│   ├── modals/                # Переиспользуемые модальные окна
+│   ├── modals/
 │   │   └── AddExpenseModal.vue    # Модалка добавления траты
-│   └── onboarding/            # Компоненты онбординга (пошагового)
-│       ├── OnboardingContainer.vue  # Контейнер онбординга (оркестратор)
-│       ├── IncomeStep.vue     # Шаг 1: Ввод дохода
-│       ├── ExpensesStep.vue   # Шаг 2: Обязательные расходы
-│       ├── SummaryStep.vue    # Шаг 3: Свободные деньги (summary)
-│       ├── GoalStep.vue       # Шаг 4: Цель накоплений
-│       └── ResultStep.vue     # Шаг 5: Финальный результат
-└── components/ (legacy)
-    ├── MainScreen.vue         # ⚠️ Устарел, использовать MainView.vue
-    └── StartScreen.vue        # ⚠️ Устарел, использовать onboarding/*
+│   └── onboarding/
+│       ├── OnboardingContainer.vue  # Контейнер онбординга
+│       ├── IncomeStep.vue           # Шаг 1: Доход
+│       ├── ExpensesStep.vue         # Шаг 2: Обязательные расходы
+│       ├── SummaryStep.vue          # Шаг 3: Свободные деньги
+│       ├── GoalStep.vue             # Шаг 4: Цель накопления
+│       └── ResultStep.vue           # Шаг 5: Результат
+└── style.css                  # Глобальные стили
 ```
-
-### Архитектурные принципы
-
-1. **Разделение ответственности**:
-   - `views/` — компоненты уровня страниц, привязанные к маршрутам
-   - `components/` — переиспользуемые UI-компоненты
-   - `components/modals/` — изолированные модальные окна с чётким API
-   - `components/onboarding/` — модульные шаги онбординга
-
-2. **Масштабируемость онбординга**:
-   - Каждый шаг онбординга — независимый компонент
-   - `OnboardingContainer` управляет состоянием всех шагов через единый объект `onboardingData`
-   - Легко добавлять новые шаги: создать компонент → добавить в `STEP_COMPONENTS`
-
-3. **Изоляция модалок**:
-   - Модалки вынесены в отдельные компоненты
-   - Используют `v-model` для управления видимостью
-   - Эмитят события вместо прямого изменения состояния родителя
 
 ---
 
 ## 🛣 Маршрутизация
 
-| Path | Component | Описание |
+| Путь | Компонент | Описание |
 |------|-----------|----------|
-| `/` | `MainView.vue` | Главная страница: дневной лимит, прогресс, список трат |
-| `/settings` | `OnboardingContainer.vue` | Онбординг/настройка бюджета |
+| `/` | `MainView.vue` | Главный экран с дневным лимитом |
+| `/settings` | `OnboardingContainer.vue` | Онбординг/настройки бюджета |
 
-### Добавление нового маршрута
+**Файл:** `src/router/index.js`
 
 ```javascript
-// src/router/index.js
-import NewView from '../views/NewView.vue'
-
 const routes = [
-  // ... existing routes
-  {
-    path: '/new-route',
-    name: 'NewRoute',
-    component: NewView
-  }
+  { path: '/', name: 'MainView', component: MainView },
+  { path: '/settings', name: 'Onboarding', component: OnboardingContainer }
 ]
 ```
 
@@ -88,46 +57,41 @@ const routes = [
 
 ## 💾 Хранение данных (localStorage)
 
-### Ключи localStorage
+### Ключ: `daylimit-settings`
 
-| Ключ | Тип | Описание |
-|------|-----|----------|
-| `daylimit-settings` | Object | Настройки пользователя (доход, расходы, цели) |
-| `daylimit-transactions-YYYY-MM` | Array | Транзакции за месяц |
-
-### Структура `daylimit-settings`
+Структура объекта настроек:
 
 ```typescript
 interface Settings {
-  income: number;                    // Месячный доход (после налогов)
-  rent: number;                      // Аренда
-  utilities: number;                 // Коммуналка
-  food: number;                      // Еда
-  transport: number;                 // Транспорт
-  credits: number;                   // Кредиты
-  customExpenses: CustomExpense[];   // Кастомные расходы
-  savings: number;                   // Процент на цель (0-100)
-  goal: string | null;               // ID выбранной цели
-  goalAmount: number;                // Сумма цели
-  daysToSalary: number;              // Дней до зарплаты (default: 30)
-  savingsUsed: number;               // Сколько уже взято из цели
-  debt: number;                      // Текущий долг (перерасход)
-}
-
-interface CustomExpense {
-  name: string;
-  amount: number;
+  income: number;              // Ежемесячный доход (после налогов)
+  rent: number;                // Аренда жилья
+  utilities: number;           // Коммунальные услуги
+  food: number;                // Питание
+  transport: number;           // Транспорт
+  credits: number;             // Кредиты/займы
+  customExpenses: Array<{      // Пользовательские категории расходов
+    name: string;
+    amount: number;
+  }>;
+  savings: number;             // Процент от свободных денег на цель (0-100)
+  goal: string | null;         // ID выбранной цели ('safety' | 'car' | 'vacation')
+  goalAmount: number;          // Сумма цели
+  daysToSalary: number;        // Дней до зарплаты (по умолчанию 30)
+  savingsUsed: number;         // Сколько уже взято из цели на покрытие перерасхода
+  debt: number;                // Текущий долг (когда цель исчерпана)
 }
 ```
 
-### Структура транзакции
+### Ключ: `daylimit-transactions-YYYY-MM`
+
+Массив транзакций за текущий месяц:
 
 ```typescript
 interface Transaction {
-  id: string;           // Уникальный ID (timestamp + random)
-  name: string;         // Название категории (с эмодзи)
-  amount: number;       // Сумма траты
-  date: string;         // ISO 8601 timestamp
+  id: string;      // Уникальный ID (timestamp + random)
+  name: string;    // Название категории (например, "☕ Кофе")
+  amount: number;  // Сумма траты
+  date: string;    // ISO 8601 timestamp
 }
 ```
 
@@ -135,283 +99,273 @@ interface Transaction {
 
 ## 🧮 Алгоритмы расчётов
 
-### 1. Расчёт свободных денег
+### 1. Расчёт обязательных расходов
 
 ```javascript
-const fixedExpenses = rent + utilities + food + transport + credits + customExpensesTotal
+const fixedExpenses = 
+  rent + utilities + food + transport + credits + 
+  customExpenses.reduce((sum, item) => sum + item.amount, 0)
+```
+
+### 2. Расчёт свободных денег
+
+```javascript
 const freeMoney = Math.max(0, income - fixedExpenses)
 ```
 
-### 2. Расчёт месячного бюджета
+### 3. Месячный бюджет на траты
 
 ```javascript
-const savingsPercent = settings.savings  // 0-100
-const monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+const monthlyBudget = freeMoney - (freeMoney * (savings / 100))
+// где savings — процент на цель (0-100)
 ```
 
-### 3. Расчёт дневного лимита
+### 4. Доступные деньги (с учётом перерасхода)
 
 ```javascript
-const daysRemaining = Math.max(1, settings.daysToSalary)
 const availableMoney = Math.max(0, monthlyBudget + savingsUsed - totalSpentMonth)
+```
+
+### 5. Дневной лимит
+
+```javascript
 const dailyLimit = availableMoney / daysRemaining
+```
+
+### 6. Остаток на сегодня
+
+```javascript
 const remainingToday = dailyLimit - totalSpentToday
 ```
 
-### 4. Логика перерасхода (Overspend)
+---
 
-При добавлении траты, превышающей доступные деньги:
+## 📊 Логика перерасхода (Overspend Logic)
+
+Когда пользователь совершает трату, которая превышает доступный бюджет:
 
 ```javascript
-const wouldRemain = availableMoney - transaction.amount
-
-if (wouldRemain < 0) {
-  const overspend = Math.abs(wouldRemain)
-  const availableInGoal = Math.max(0, goalAmount - savingsUsed)
+function executeTransactionLogic(transaction) {
+  const wouldRemain = availableMoney - transaction.amount
   
-  if (availableInGoal >= overspend) {
-    // Цели хватает
-    settings.savingsUsed += overspend
-  } else {
-    // Цель кончилась, остаток в долг
-    settings.savingsUsed += availableInGoal
-    settings.debt += (overspend - availableInGoal)
+  if (wouldRemain < 0) {
+    const overspend = Math.abs(wouldRemain)
+    const availableInGoal = goalAmount - savingsUsed
+    
+    if (availableInGoal >= overspend) {
+      // Цели хватает для покрытия
+      settings.savingsUsed += overspend
+    } else {
+      // Цель исчерпана, остаток в долг
+      settings.savingsUsed += availableInGoal
+      settings.debt += (overspend - availableInGoal)
+    }
+    saveSettings()
   }
+  
+  transactions.unshift(transaction)
+  saveTransactions()
 }
 ```
 
-### 5. Пересчёт при удалении транзакции
+---
 
-**Важно**: При удалении транзакции состояние (`debt`, `savingsUsed`) пересчитывается **с нуля**, а не эвристически:
+## 🔄 Пересчёт при удалении транзакции
+
+**Важно:** При удалении транзакции состояние `savingsUsed` и `debt` пересчитывается **с нуля** на основе оставшихся транзакций:
 
 ```javascript
 function recalculateFinancialState() {
-  const newTotalSpentMonth = transactions.reduce((sum, t) => sum + t.amount, 0)
+  const monthlyBudget = /* расчёт бюджета */
+  const newTotalSpentMonth = transactions.reduce(...)
   
   if (newTotalSpentMonth <= monthlyBudget) {
-    // Перерасхода нет
+    // Перерасхода нет — сбрасываем всё
     settings.debt = 0
     settings.savingsUsed = 0
   } else {
-    // Есть перерасход
+    // Есть перерасход — всё ушло в долг
     settings.debt = newTotalSpentMonth - monthlyBudget
     settings.savingsUsed = settings.goalAmount
   }
+  
+  saveSettings()
 }
 ```
+
+Это предотвращает баги с некорректным возвратом средств.
 
 ---
 
 ## 🎨 Визуальные состояния
 
-### Цветовая индикация лимита
+### Карточка дневного лимита
 
-| Состояние | Порог (₽) | Класс | Цвет карточки |
-|-----------|-----------|-------|---------------|
-| Normal | ≥ 1500 | — | Фиолетовый (#4f46e5) |
-| Warning | 500–1500 | `warning` | Оранжевый (#f59e0b) |
-| Danger | < 500 | `danger` | Красный (#ef4444) |
-| Overspent | < 0 | `overspent` | Тёмно-красный (#7f1d1d) |
+| Класс | Условие | Стиль |
+|-------|---------|-------|
+| (none) | `remainingToday >= 1500` | Градиент фиолетовый (#4f46e5 → #7c3aed) |
+| `warning` | `500 <= remainingToday < 1500` | Градиент оранжевый (#f59e0b → #d97706) |
+| `danger` | `0 <= remainingToday < 500` | Градиент красный (#ef4444 → #dc2626) |
+| `overspent` | `remainingToday < 0` | Градиент тёмно-красный (#7f1d1d → #991b1b) |
 
-### Индикация прогресса
+### Прогресс-бар трат за сегодня
 
-| Состояние | Прогресс | Класс | Цвет полоски |
-|-----------|----------|-------|--------------|
-| Normal | ≤ 50% | — | Фиолетовый |
-| Warning | 50–80% | `warning` | Оранжевый |
-| Danger | > 80% или перерасход | `danger` | Красный |
+| Класс | Условие | Цвет |
+|-------|---------|------|
+| (none) | `progress <= 50%` | Фиолетовый (#4f46e5) |
+| `warning` | `50% < progress <= 80%` | Оранжевый (#f59e0b) |
+| `danger` | `progress > 80%` или перерасход | Красный (#ef4444) |
+
+**Константы порогов:**
+```javascript
+const LIMIT_WARNING_THRESHOLD = 1500   // руб.
+const LIMIT_DANGER_THRESHOLD = 500     // руб.
+const PROGRESS_WARNING_PERCENT = 50    // %
+const PROGRESS_DANGER_PERCENT = 80     // %
+```
 
 ---
 
-## 📦 Детальное описание компонентов
+## 🧩 Компоненты
 
-### MainView.vue
+### `MainView.vue`
 
-**Расположение**: `src/views/MainView.vue`
+**Расположение:** `src/views/MainView.vue`
 
-**Ответственность**: Отображение дневного лимита, прогресса, метрик и списка трат.
+**Описание:** Главный экран приложения. Отображает дневной лимит, прогресс трат, метрики и список транзакций.
 
-#### Props
-Нет (корневой компонент страницы)
+**Props:** Нет (использует route)
 
-#### State
-```javascript
-const settings = ref(null)      // Объект настроек
-const transactions = ref([])    // Массив транзакций
-const showAddModal = ref(false) // Видимость модалки
-```
+**Events:** Нет
 
-#### Computed
-| Имя | Тип | Описание |
-|-----|-----|----------|
-| `data` | Object | Все рассчитанные метрики (см. раздел "Алгоритмы") |
-| `displayLimit` | Number | Максимум(0, remainingToday) |
-| `limitCardClass` | String | CSS-класс для цветовой индикации |
-| `progressPercent` | Number | Процент потраченного сегодня (0-100) |
-| `progressFillClass` | String | Класс цвета прогресс-бара |
-| `todayTransactions` | Array | Отфильтрованные сегодняшние транзакции |
+**State:**
+- `settings` (ref) — настройки из localStorage
+- `transactions` (ref) — массив транзакций
+- `showAddModal` (ref) — видимость модалки добавления траты
 
-#### Methods
-| Метод | Параметры | Возвращает | Описание |
-|-------|-----------|------------|----------|
-| `formatMoney(amount)` | Number | String | Форматирование числа (1000 → "1 000") |
-| `getDaysWord(n)` | Number | String | Склонение слова "день/дня/дней" |
-| `getMonthKey()` | — | String | Ключ localStorage для текущего месяца |
-| `isToday(dateStr)` | String | Boolean | Проверка даты на "сегодня" |
-| `formatTime(dateStr)` | String | String | Форматирование времени (HH:MM) |
-| `getCategoryIcon(name)` | String | String | Извлечение эмодзи из названия |
-| `getTransactionName(name)` | String | String | Название без эмодзи |
-| `handleTransaction(tx)` | Transaction | void | Обработка новой траты от модалки |
-| `deleteTransaction(id)` | String | void | Удаление транзакции + пересчёт |
-| `clearTodayExpenses()` | — | void | Массовое удаление за сегодня |
-| `recalculateFinancialState()` | — | void | Пересчёт debt/savingsUsed с нуля |
-| `goToSettings()` | — | void | Навигация на /settings |
+**Computed:**
+- `data` — агрегированные данные для отображения (лимиты, остатки, долги)
+- `displayLimit` — отображаемый лимит (max(0, remainingToday))
+- `limitCardClass` — CSS класс для карточки лимита
+- `progressPercent` — процент заполнения прогресс-бара
+- `progressFillClass` — CSS класс для заполнения прогресс-бара
+- `todayTransactions` — фильтрованные транзакции за сегодня
 
-#### Events (от дочерних компонентов)
-- `@transaction` (от AddExpenseModal) — новая трата
+**Methods:**
+- `handleTransaction(transaction)` — обработка новой траты
+- `executeTransactionLogic(transaction)` — логика проведения транзакции
+- `deleteTransaction(id)` — удаление транзакции
+- `clearTodayExpenses()` — очистка всех трат за сегодня
+- `recalculateFinancialState()` — пересчёт financial state
+- `goToSettings()` — переход в настройки
 
 ---
 
-### OnboardingContainer.vue
+### `AddExpenseModal.vue`
 
-**Расположение**: `src/components/onboarding/OnboardingContainer.vue`
+**Расположение:** `src/components/modals/AddExpenseModal.vue`
 
-**Ответственность**: Оркестрация шагов онбординга, управление состоянием, навигация.
+**Описание:** Модальное окно для добавления траты. Содержит пресеты категорий и поле для ввода своей суммы.
 
-#### Props
-Нет
+**Props:**
+- `modelValue` (Boolean) — видимость модалки (v-model)
 
-#### Emits
-Нет
+**Emits:**
+- `update:modelValue` — изменение видимости
+- `transaction` — новая транзакция (объект Transaction)
 
-#### State
-```javascript
-const currentStep = ref(1)
-const onboardingData = ref({
-  income: 0,
-  expenses: { rent: 0, utilities: 0, food: 0, transport: 0, credits: 0 },
-  customExpenses: [],
-  selectedGoal: null,
-  goalAmount: 0,
-  savingsPercent: 0
-})
-```
-
-#### Computed
-| Имя | Тип | Описание |
-|-----|-----|----------|
-| `currentStepComponent` | Component | Динамический компонент для текущего шага |
-| `canProceed` | Boolean | Можно ли перейти дальше (валидация шага 1) |
-
-#### Methods
-| Метод | Описание |
-|-------|----------|
-| `next()` | Переход к следующему шагу |
-| `prev()` | Переход к предыдущему шагу |
-| `finish()` | Сохранение настроек в localStorage, редирект на главную |
-
----
-
-### AddExpenseModal.vue
-
-**Расположение**: `src/components/modals/AddExpenseModal.vue`
-
-**Ответственность**: UI для добавления траты (preset категории + кастомная сумма).
-
-#### Props
-| Имя | Тип | Обязательный | Описание |
-|-----|-----|--------------|----------|
-| `modelValue` | Boolean | Да | Видимость модалки (v-model) |
-
-#### Emits
-| Событие | Payload | Описание |
-|---------|---------|----------|
-| `update:modelValue` | Boolean | Закрытие модалки |
-| `transaction` | Transaction | Новая трата готова к обработке |
-
-#### State
-```javascript
-const customAmount = ref(0)
-```
-
-#### Constants
+**Preset категории:**
 ```javascript
 const PRESET_CATEGORIES = [
   { name: '☕ Кофе', amount: 300, icon: '☕' },
   { name: '🍔 Обед', amount: 600, icon: '🍔' },
-  // ...
+  { name: '🚕 Такси', amount: 400, icon: '🚕' },
+  { name: '🎬 Кино', amount: 500, icon: '🎬' },
+  { name: '🛍 Покупки', amount: 1500, icon: '🛍' },
+  { name: '🍷 Бар', amount: 2000, icon: '🍷' }
 ]
 ```
 
-#### Methods
-| Метод | Параметры | Описание |
-|-------|-----------|----------|
-| `handleCategoryClick(cat)` | Category | Эмитит транзакцию, закрывает модалку |
-| `handleCustomTransaction()` | — | Создаёт транзакцию с кастомной суммой |
-| `generateId()` | — | Генерирует уникальный ID |
+---
+
+### `OnboardingContainer.vue`
+
+**Расположение:** `src/components/onboarding/OnboardingContainer.vue`
+
+**Описание:** Контейнер онбординга. Управляет навигацией между шагами и собирает итоговые данные.
+
+**State:**
+- `currentStep` (ref) — текущий шаг (1-5)
+- `onboardingData` (ref) — единое состояние для всех шагов
+
+**Шаги:**
+1. `IncomeStep` — ввод дохода
+2. `ExpensesStep` — ввод обязательных расходов
+3. `SummaryStep` — отображение свободных денег
+4. `GoalStep` — выбор цели и процента накоплений
+5. `ResultStep` — финальный расчёт дневного лимита
+
+**Методы:**
+- `next()` — переход к следующему шагу
+- `prev()` — переход к предыдущему шагу
+- `finish()` — сохранение настроек и редирект на главный экран
 
 ---
 
-### IncomeStep.vue
+### `IncomeStep.vue`
 
-**Расположение**: `src/components/onboarding/IncomeStep.vue`
+**Расположение:** `src/components/onboarding/IncomeStep.vue`
 
-**Props**: `modelValue: Object` (общие данные онбординга)
+**Props:**
+- `modelValue` (Object) — общее состояние онбординга
 
-**Emits**: `update:modelValue`
-
-**Поля ввода**:
-- `income` — месячный доход
+**Emits:**
+- `update:modelValue` — обновление данных
+- `focus-request` — запрос фокуса (для автофокуса input)
 
 ---
 
-### ExpensesStep.vue
+### `ExpensesStep.vue`
 
-**Расположение**: `src/components/onboarding/ExpensesStep.vue`
+**Расположение:** `src/components/onboarding/ExpensesStep.vue`
 
-**Props**: `modelValue: Object`
+**Props:**
+- `modelValue` (Object) — общее состояние онбординга
 
-**Emits**: `update:modelValue`
+**Emits:**
+- `update:modelValue` — обновление данных
 
-**Структура данных**:
+**Категории расходов:**
 ```javascript
-{
-  expenses: { rent, utilities, food, transport, credits },
-  customExpenses: [{ name, amount }]
+const expenseCategories = {
+  rent: 'Аренда',
+  utilities: 'Коммуналка',
+  food: 'Еда',
+  transport: 'Транспорт',
+  credits: 'Кредиты'
 }
 ```
 
-**Методы**:
-- `emitExpenseUpdate(key, value)` — обновление стандартной категории
-- `emitCustomNameUpdate(idx, value)` — имя кастомного расхода
-- `emitCustomAmountUpdate(idx, value)` — сумма кастомного расхода
-- `addCustomExpense()` — добавить кастомный расход
-- `removeCustom(idx)` — удалить кастомный расход
-
 ---
 
-### SummaryStep.vue
+### `SummaryStep.vue`
 
-**Расположение**: `src/components/onboarding/SummaryStep.vue`
+**Расположение:** `src/components/onboarding/SummaryStep.vue`
 
-**Props**: `modelValue: Object`
+**Описание:** Показывает расчёт свободных денег (`income - expenses`).
 
-**Computed**:
-- `income` — из modelValue
+**Computed:**
+- `income` — доход
 - `totalExpenses` — сумма всех расходов
-- `freeMoney` — income − totalExpenses
+- `freeMoney` — свободные деньги
 
 ---
 
-### GoalStep.vue
+### `GoalStep.vue`
 
-**Расположение**: `src/components/onboarding/GoalStep.vue`
+**Расположение:** `src/components/onboarding/GoalStep.vue`
 
-**Props**: `modelValue: Object`
-
-**Emits**: `update:modelValue`
-
-**Constants**:
+**Пресеты целей:**
 ```javascript
 const PRESET_GOALS = [
   { id: 'safety', name: 'Подушка безопасности', icon: '🛡️', recommended: true },
@@ -420,131 +374,160 @@ const PRESET_GOALS = [
 ]
 ```
 
-**Computed**:
-- `freeMoney` — свободные деньги
-- `goalMonthly` — ежемесячный взнос на цель
-- `goalMonths` — срок достижения цели
-- `goalMonthsText` — человекочитаемый срок
-- `dailyLimit` — дневной лимит после вычета цели
-
-**Watch**:
-- Автоматический пересчёт `goalAmount` для "Подушки безопасности" при изменении расходов
+**Логика:**
+- Для "Подушки безопасности" сумма = 3 × обязательные расходы
+- Для остальных целей — фиксированная сумма по умолчанию (редактируемая)
+- Автослайдер процента накоплений (0-100%, шаг 5%)
+- Живой расчёт срока достижения цели и дневного лимита
 
 ---
 
-### ResultStep.vue
+### `ResultStep.vue`
 
-**Расположение**: `src/components/onboarding/ResultStep.vue`
+**Расположение:** `src/components/onboarding/ResultStep.vue`
 
-**Props**: `modelValue: Object`
+**Описание:** Финальный экран с рассчитанным дневным лимитом.
 
-**Computed**:
-- `dailyLimit` — финальный дневной лимит
-- `income` — доход
-- `selectedGoal` — выбранная цель
-- `goalAmount` — сумма цели
+---
+
+## 🔧 Утилитарные функции
+
+### `formatMoney(amount)`
+Форматирует число в русскую денежную строку.
+```javascript
+formatMoney(1500) // "1 500"
+```
+
+### `getDaysWord(n)`
+Склоняет слово "день" по падежам.
+```javascript
+getDaysWord(1)  // "день"
+getDaysWord(2)  // "дня"
+getDaysWord(5)  // "дней"
+getDaysWord(21) // "день"
+```
+
+### `getMonthKey()`
+Генерирует ключ localStorage для текущего месяца.
+```javascript
+// Август 2025
+getMonthKey() // "daylimit-transactions-2025-08"
+```
+
+### `isToday(dateStr)`
+Проверяет, является ли дата сегодняшней.
+
+### `formatTime(dateStr)`
+Форматирует время в ЧЧ:ММ.
+
+### `getCategoryIcon(name)`
+Извлекает эмодзи из названия категории.
+
+### `generateId()`
+Генерирует уникальный ID для транзакции.
 
 ---
 
 ## 🐛 Исправленные баги
 
 ### 1. Некорректный возврат средств при удалении транзакции
-**Файл**: `MainView.vue` (функция `recalculateFinancialState`)
+**Проблема:** При удалении транзакции `savingsUsed` и `debt` не пересчитывались корректно.
 
-**Проблема**: При удалении транзакции `debt` и `savingsUsed` восстанавливались эвристически, что приводило к несоответствиям.
+**Решение:** Полная пересчётка финансового состояния с нуля на основе оставшихся транзакций.
 
-**Решение**: Полный пересчёт состояния с нуля на основе оставшихся транзакций.
+**Файл:** `MainView.vue`, функция `recalculateFinancialState()`
 
 ### 2. Отсутствие валидации суммы траты
-**Файл**: `AddExpenseModal.vue`
+**Проблема:** Можно было добавить трату с нулевой или отрицательной суммой.
 
-**Проблема**: Можно было ввести отрицательную сумму или 0.
+**Решение:** Добавлен атрибут `min="1"` на input и блокировка кнопки при `customAmount <= 0`.
 
-**Решение**: 
-- Атрибут `min="1"` на input
-- `:disabled="customAmount <= 0"` на кнопке
+**Файл:** `AddExpenseModal.vue`, строки 28, 39
 
-### 3. Модалка не закрывалась при нулевой сумме
-**Файл**: `AddExpenseModal.vue`
+### 3. Преждевременное закрытие модалки
+**Проблема:** Модалка закрывалась даже если сумма не валидна.
 
-**Проблема**: Модалка закрывалась даже если `customAmount === 0`.
+**Решение:** Закрытие модалки только внутри условия `if (customAmount.value > 0)`.
 
-**Решение**: Закрытие только внутри условия `if (customAmount.value > 0)`.
-
-### 4. Дублирование CSS-стилей
-**Файл**: `style.css`
-
-**Решение**: Удалены дубли, добавлена структурированная навигация.
-
-### 5. Неиспользуемый код в App.vue
-**Файл**: `App.vue`
-
-**Решение**: Удалены дублирующие глобальные стили.
+**Файл:** `AddExpenseModal.vue`, строка 92-100
 
 ---
 
-## 🔧 Расширение функционала
+## 📝 Расширение функционала
 
-### Добавление нового шага онбординга
+### Добавление новой категории расходов в онбординге
 
-1. Создать компонент в `src/components/onboarding/NewStep.vue`
-2. Добавить импорт в `OnboardingContainer.vue`
-3. Добавить в `STEP_COMPONENTS`
-4. Увеличить `TOTAL_STEPS`
-
-### Добавление preset категории трат
-
-Изменить массив в `AddExpenseModal.vue`:
+1. Откройте `ExpensesStep.vue`
+2. Добавьте новую категорию в объект `expenseCategories`:
 ```javascript
-const PRESET_CATEGORIES = [
-  // ...
-  { name: '🏋️ Спортзал', amount: 2500, icon: '🏋️' }
-]
+const expenseCategories = {
+  // ...существующие
+  insurance: 'Страховка'  // новая категория
+}
+```
+3. В `OnboardingContainer.vue` добавьте поле в объект `expenses` (если нужно)
+4. В `MainView.vue` обновите расчёт `fixedExpenses`
+
+### Добавление нового пресета траты
+
+1. Откройте `AddExpenseModal.vue`
+2. Добавьте новый объект в массив `PRESET_CATEGORIES`:
+```javascript
+{ name: '🍕 Пицца', amount: 800, icon: '🍕' }
 ```
 
-### Добавление типа расхода в онбординге
+### Добавление новой цели накопления
 
-1. Добавить в `expenseCategories` в `ExpensesStep.vue`
-2. Обновить структуру `expenses` в `OnboardingContainer.vue`
-3. Обновить `finish()` для сохранения нового поля
+1. Откройте `GoalStep.vue` (и `ResultStep.vue` для консистентности)
+2. Добавьте новую цель в `PRESET_GOALS`:
+```javascript
+{ id: 'house', name: 'Дом', icon: '🏠', defaultAmount: 5000000 }
+```
+
+### Изменение порогов цветовой индикации
+
+Откройте `MainView.vue` и измените константы:
+```javascript
+const LIMIT_WARNING_THRESHOLD = 1500
+const LIMIT_DANGER_THRESHOLD = 500
+const PROGRESS_WARNING_PERCENT = 50
+const PROGRESS_DANGER_PERCENT = 80
+```
 
 ---
 
 ## ⚠️ Известные ограничения
 
-1. **Один месяц транзакций**: Данные хранятся только за текущий месяц.
-2. **Нет синхронизации**: Только localStorage, при очистке данные теряются.
-3. **Жёстко заданный период до зарплаты**: 30 дней по умолчанию.
-4. **Один пользователь**: Нет поддержки нескольких профилей.
+1. **Хранение данных:** Все данные хранятся в localStorage браузера. При очистке кэша данные будут потеряны.
+
+2. **Месячные транзакции:** Транзакции привязаны к месяцу. При переходе на новый месяц история прошлого месяца остаётся в localStorage, но не отображается.
+
+3. **Дни до зарплаты:** Фиксированное значение (30 дней по умолчанию). Нет динамического расчёта по календарю.
+
+4. **Мультивалютность:** Поддерживается только одна валюта (российский рубль).
+
+5. **Синхронизация:** Нет облачной синхронизации между устройствами.
 
 ---
 
 ## 🚀 Сборка и запуск
 
-### Development
 ```bash
+# Установка зависимостей
 npm install
+
+# Запуск dev-сервера
 npm run dev
-```
 
-### Production build
-```bash
+# Сборка production-версии
 npm run build
-```
 
-### Preview production
-```bash
+# Предпросмотр сборки
 npm run preview
 ```
 
 ---
 
-## 📝 Best Practices
+## 📄 Лицензия
 
-1. **Не изменяйте напрямую `settings.value`** вне функций сохранения.
-2. **Всегда вызывайте `recalculateFinancialState()`** после массовых изменений транзакций.
-3. **Используйте `v-model` для модалок** вместо прямого управления видимостью.
-4. **Добавляйте JSDoc комментарии** к сложным функциям.
-5. **Проверяйте существование полей** через `Number(x) || 0`.
-6. **Новые страницы создавайте в `views/`**.
-7. **Модалки размещайте в `components/modals/`**.
+MIT
