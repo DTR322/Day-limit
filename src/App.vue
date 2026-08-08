@@ -1,26 +1,15 @@
+<script setup>
+import { RouterView } from 'vue-router'
+</script>
+
 <template>
   <div id="app">
-    <router-view />
+    <RouterView />
   </div>
 </template>
 
-<script setup>
-import { RouterView } from 'vue-router' // Явный импорт, чтобы Vite точно понял
-</script>
-
 <style>
-/* Базовые стили для всего приложения */
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  background-color: #f5f5f7;
-  color: #1c1c1e;
-  -webkit-font-smoothing: antialiased;
-}
+/* Глобальные стили вынесены в style.css */
 #app {
   max-width: 480px;
   margin: 0 auto;
