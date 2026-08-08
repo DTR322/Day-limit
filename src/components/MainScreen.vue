@@ -98,14 +98,14 @@
       <div class="custom-amount">
         <label>Своя сумма</label>
         <div class="input-group">
-          <input type="number" v-model.number="customAmount" placeholder="0"/>
+          <input type="number" v-model.number="customAmount" placeholder="0" min="1"/>
           <span class="suffix">₽</span>
         </div>
       </div>
 
       <div class="modal-buttons">
         <button class="btn-secondary" @click="showAddModal = false">Отмена</button>
-        <button class="btn-primary" @click="processCustomTransaction">Добавить</button>
+        <button class="btn-primary" @click="processCustomTransaction" :disabled="customAmount <= 0">Добавить</button>
       </div>
     </div>
   </div>
@@ -122,6 +122,22 @@ const settings = ref(null)
 const transactions = ref([])
 const customAmount = ref(0)
 const showAddModal = ref(false)
+
+// === КОНСТАНТЫ ===
+const PRESET_CATEGORIES = [
+  { name: '☕ Кофе', amount: 300 },
+  { name: '🍔 Обед', amount: 600 },
+  { name: '🚕 Такси', amount: 400 },
+  { name: '🎬 Кино', amount: 500 },
+  { name: '🛍 Покупки', amount: 1500 },
+  { name: '🍷 Бар', amount: 2000 }
+]
+
+// Пороговые значения для цветовой индикации лимита (в рублях)
+const LIMIT_WARNING_THRESHOLD = 1500
+const LIMIT_DANGER_THRESHOLD = 500
+const PROGRESS_WARNING_PERCENT = 50
+const PROGRESS_DANGER_PERCENT = 80
 
 // === УТИЛИТЫ ===
 function formatMoney(amount) {
@@ -235,36 +251,28 @@ const data = computed(() => {
 const displayLimit = computed(() => Math.max(0, data.value.remainingToday))
 
 const limitCardClass = computed(() => {
-  const r = data.value.remainingToday
-  if (r < 0) return 'overspent'
-  if (r < 500) return 'danger'
-  if (r < 1500) return 'warning'
+  const remainingToday = data.value.remainingToday
+  if (remainingToday < 0) return 'overspent'
+  if (remainingToday < LIMIT_DANGER_THRESHOLD) return 'danger'
+  if (remainingToday < LIMIT_WARNING_THRESHOLD) return 'warning'
   return ''
 })
 
 const progressPercent = computed(() => {
-  const d = data.value
-  return d.dailyLimit > 0 ? Math.min((d.totalSpentToday / d.dailyLimit) * 100, 100) : 0
+  const dailyLimit = data.value.dailyLimit
+  const totalSpentToday = data.value.totalSpentToday
+  return dailyLimit > 0 ? Math.min((totalSpentToday / dailyLimit) * 100, 100) : 0
 })
 
 const progressFillClass = computed(() => {
-  if (data.value.remainingToday < 0 || progressPercent.value > 80) return 'danger'
-  if (progressPercent.value > 50) return 'warning'
+  const remainingToday = data.value.remainingToday
+  const progress = progressPercent.value
+  if (remainingToday < 0 || progress > PROGRESS_DANGER_PERCENT) return 'danger'
+  if (progress > PROGRESS_WARNING_PERCENT) return 'warning'
   return ''
 })
 
 const todayTransactions = computed(() => transactions.value.filter(t => isToday(t.date)))
-
-// === ЛОГИКА ТРАТ (АВТОМАТИЧЕСКАЯ) ===
-function processTransaction(name, amount) {
-  const transaction = {
-    id: generateId(),
-    name: name,
-    amount: amount,
-    date: new Date().toISOString()
-  }
-  executeTransactionLogic(transaction)
-}
 
 function processCustomTransaction() {
   if (customAmount.value > 0) {
@@ -275,9 +283,20 @@ function processCustomTransaction() {
       date: new Date().toISOString()
     }
     executeTransactionLogic(transaction)
+    showAddModal.value = false
+    customAmount.value = 0
   }
-  showAddModal.value = false
-  customAmount.value = 0
+}
+
+// === ЛОГИКА ТРАТ (АВТОМАТИЧЕСКАЯ) ===
+function processTransaction(name, amount) {
+  const transaction = {
+    id: generateId(),
+    name: name,
+    amount: amount,
+    date: new Date().toISOString()
+  }
+  executeTransactionLogic(transaction)
 }
 
 function executeTransactionLogic(transaction) {
@@ -313,16 +332,41 @@ function deleteTransaction(id) {
   if (index === -1) return
 
   const t = transactions.value[index]
-  transactions.value.splice(index, 1)
-
-  // При удалении траты "возвращаем" деньги: сначала гасим долг, потом восстанавливаем цель
+  const amount = Number(t.amount) || 0
+  
+  // Запоминаем состояние ДО удаления
   const s = settings.value
-  if (s.debt > 0) {
-    s.debt = Math.max(0, s.debt - t.amount)
-  } else if (s.savingsUsed > 0) {
-    s.savingsUsed = Math.max(0, s.savingsUsed - t.amount)
+  const oldDebt = Number(s.debt) || 0
+  const oldSavingsUsed = Number(s.savingsUsed) || 0
+  
+  // Удаляем транзакцию
+  transactions.value.splice(index, 1)
+  
+  // Пересчитываем totalSpentMonth без этой транзакции
+  const newTotalSpentMonth = transactions.value.reduce((sum, tr) => sum + (Number(tr.amount) || 0), 0)
+  
+  // Считаем бюджет заново
+  const income = Number(s.income) || 0
+  const fixedExpenses = (Number(s.rent) || 0) + (Number(s.utilities) || 0) + (Number(s.food) || 0) + 
+                        (Number(s.transport) || 0) + (Number(s.credits) || 0) + 
+                        (Array.isArray(s.customExpenses) ? s.customExpenses.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0) : 0)
+  const freeMoney = Math.max(0, income - fixedExpenses)
+  const savingsPercent = Number(s.savings) || 0
+  const monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+  
+  // Логика восстановления: пересчитываем с нуля на основе оставшихся транзакций
+  // Если новые траты меньше или равны бюджету — долга нет, savingsUsed = 0
+  // Если новые траты больше бюджета — разница это долг, savingsUsed = вся цель
+  if (newTotalSpentMonth <= monthlyBudget) {
+    // Перерасхода нет — сбрасываем всё
+    s.debt = 0
+    s.savingsUsed = 0
+  } else {
+    // Есть перерасход — всё ушло в долг
+    s.debt = newTotalSpentMonth - monthlyBudget
+    s.savingsUsed = Number(s.goalAmount) || 0
   }
-
+  
   saveSettings()
   saveTransactions()
 }
@@ -330,17 +374,43 @@ function deleteTransaction(id) {
 function clearTodayExpenses() {
   const today = transactions.value.filter(t => isToday(t.date))
   if (today.length === 0) return
-  if (confirm('Очистить все траты за сегодня?')) {
+  
+  // Сначала считаем общую сумму за сегодня
+  const totalAmountToday = today.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  
+  if (confirm(`Очистить все траты за сегодня? Будет удалено ${today.length} транзакций на сумму ${formatMoney(totalAmountToday)} ₽`)) {
+    // Удаляем все сегодняшние транзакции
     today.forEach(t => {
       const idx = transactions.value.findIndex(tr => tr.id === t.id)
       if (idx !== -1) {
         transactions.value.splice(idx, 1)
-        // Упрощенный откат для массового удаления
-        const s = settings.value
-        if (s.debt > 0) s.debt = Math.max(0, s.debt - t.amount)
-        else if (s.savingsUsed > 0) s.savingsUsed = Math.max(0, s.savingsUsed - t.amount)
       }
     })
+    
+    // Пересчитываем savingsUsed и debt с нуля на основе оставшихся транзакций
+    const s = settings.value
+    const income = Number(s.income) || 0
+    const fixedExpenses = (Number(s.rent) || 0) + (Number(s.utilities) || 0) + (Number(s.food) || 0) + 
+                          (Number(s.transport) || 0) + (Number(s.credits) || 0) + 
+                          (Array.isArray(s.customExpenses) ? s.customExpenses.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0) : 0)
+    const freeMoney = Math.max(0, income - fixedExpenses)
+    const savingsPercent = Number(s.savings) || 0
+    const monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+    
+    // Считаем общие траты за месяц после удаления
+    const newTotalSpentMonth = transactions.value.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+    
+    // Логика восстановления: пересчитываем с нуля
+    if (newTotalSpentMonth <= monthlyBudget) {
+      // Перерасхода нет — сбрасываем всё
+      s.debt = 0
+      s.savingsUsed = 0
+    } else {
+      // Есть перерасход — всё ушло в долг
+      s.debt = newTotalSpentMonth - monthlyBudget
+      s.savingsUsed = Number(s.goalAmount) || 0
+    }
+    
     saveSettings()
     saveTransactions()
   }

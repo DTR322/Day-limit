@@ -95,7 +95,7 @@
 
         <div class="goals-list">
           <button
-            v-for="g in goals"
+            v-for="g in PRESET_GOALS"
             :key="g.id"
             class="goal-btn"
             :class="{ selected: selectedGoal === g.id }"
@@ -204,8 +204,9 @@ const expenses = ref({
 
 const customExpenses = ref([])
 
-const goals = [
-  { id: 'safety', name: 'Подушка безопасности', icon: '️', recommended: true, defaultAmount: null },
+// Список предустановленных целей
+const PRESET_GOALS = [
+  { id: 'safety', name: 'Подушка безопасности', icon: '🛡️', recommended: true, defaultAmount: null },
   { id: 'car', name: 'Машина', icon: '🚗', recommended: false, defaultAmount: 1500000 },
   { id: 'vacation', name: 'Отпуск', icon: '✈️', recommended: false, defaultAmount: 100000 }
 ]
@@ -214,7 +215,8 @@ const selectedGoal = ref(null)
 const goalAmount = ref(0)
 const savingsPercent = ref(0)
 
-const DAYS_TO_SALARY = 30 // дефолт, можно менять в настройках позже
+// Количество дней до зарплаты по умолчанию
+const DEFAULT_DAYS_TO_SALARY = 30
 
 // === ВЫЧИСЛЕНИЯ ===
 
@@ -248,8 +250,8 @@ const goalMonthsText = computed(() => {
 })
 
 const dailyLimit = computed(() => {
-  const remaining = freeMoney.value - goalMonthly.value
-  return Math.max(0, Math.floor(remaining / DAYS_TO_SALARY))
+  const remainingAfterGoal = freeMoney.value - goalMonthly.value
+  return Math.max(0, Math.floor(remainingAfterGoal / DEFAULT_DAYS_TO_SALARY))
 })
 
 const canProceed = computed(() => {
@@ -273,7 +275,7 @@ function removeCustom(idx) {
 
 function selectGoal(goalId) {
   selectedGoal.value = goalId
-  const goal = goals.find(g => g.id === goalId)
+  const goal = PRESET_GOALS.find(g => g.id === goalId)
   if (goal.defaultAmount !== null) {
     goalAmount.value = goal.defaultAmount
   } else {
@@ -315,11 +317,10 @@ function finish() {
     customExpenses: customExpenses.value,
     savings: Number(savingsPercent.value) || 0,
     goal: selectedGoal.value,
-    goalName: selectedGoal.value === 'custom' ? customGoalName.value : null,
     goalAmount: Number(goalAmount.value) || 0,
-    daysToSalary: DAYS_TO_SALARY,
+    daysToSalary: DEFAULT_DAYS_TO_SALARY,
     savingsUsed: 0,
-    debt: 0          // ← добавь это
+    debt: 0
   }
 
   localStorage.setItem('daylimit-settings', JSON.stringify(settings))

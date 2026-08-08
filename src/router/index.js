@@ -1,17 +1,17 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import MainScreen from '../components/MainScreen.vue'
-import StartScreen from '../components/StartScreen.vue'
+import MainView from '../views/MainView.vue'
+import OnboardingContainer from '../components/onboarding/OnboardingContainer.vue'
 
 const routes = [
   {
     path: '/',
-    name: 'MainScreen',
-    component: MainScreen
+    name: 'MainView',
+    component: MainView
   },
   {
     path: '/settings',
-    name: 'StartScreen',
-    component: StartScreen
+    name: 'Onboarding',
+    component: OnboardingContainer
   }
 ]
 
