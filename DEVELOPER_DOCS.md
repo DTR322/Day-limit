@@ -73,7 +73,9 @@ interface Settings {
 }
 ```
 
-### Структура транзакции
+### Ключ: `daylimit-transactions-YYYY-MM`
+
+Массив транзакций за текущий месяц:
 
 ```ts
 interface Transaction {
@@ -164,7 +166,13 @@ if (wouldRemain < 0) {
 2. Затем `savingsUsed` (цель)
 3. В последнюю очередь `debt` (долг)
 
----
+**Methods:**
+- `handleTransaction(transaction)` — обработка новой траты
+- `executeTransactionLogic(transaction)` — логика проведения транзакции
+- `deleteTransaction(id)` — удаление транзакции
+- `clearTodayExpenses()` — очистка всех трат за сегодня
+- `recalculateFinancialState()` — пересчёт financial state
+- `goToSettings()` — переход в настройки
 
 ## 🗑️ Удаление транзакций
 
@@ -390,7 +398,7 @@ const LIMIT_DANGER_THRESHOLD = 500
 const DEFAULT_DAYS_TO_SALARY = 30  // ← ваше значение
 ```
 
----
+### Добавление новой категории расходов в онбординге
 
 ## 🚀 Сборка и запуск
 
