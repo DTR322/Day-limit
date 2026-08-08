@@ -2,78 +2,34 @@
 # Dependencies
 node_modules/
 
+# Build artifacts
+dist/
+
 # Environment
 .env
 .env.local
 .env.*
 
+# Editors
+.vscode/
+.idea/
+
 # Logs
 *.log
 
-# Build artifacts
-dist/
-build/
-target/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.venv.bak/
-pip-log.txt
-pip-delete-this-directory.txt
-.tox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git/
-.mypy_cache/
-.pytest_cache/
-.hypothesis/
-
-# Node.js
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-node_modules/
-dist/
-build/
-.nyc_output
-coverage/
-*.lcov
-.nodemonignore
-.next/
-.nuxt/
-.vuepress/dist
-.serverless/
-webpack-stats.json
-*.tsbuildinfo
-.eslintcache
-
-# IDE
-.vscode/
-.idea/
+# Temporary files
+*.tmp
 *.swp
-*.swo
-*~
 
-# OS
+# Compiled Python
+*.pyc
+__pycache__/
+
+# System files
 .DS_Store
 Thumbs.db
-ehthumbs.db
-Icon?
-desktop.ini
 
-# Compression
+# Compressed files
 *.zip
 *.gz
 *.tar
@@ -97,11 +53,4 @@ desktop.ini
 *.tar.xz
 *.tar.zst
 
-# Other
-*.tmp
-*.temp
-*.bak
-*.backup
-coverage/
-htmlcov/
 ```
