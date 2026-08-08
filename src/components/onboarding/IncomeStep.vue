@@ -123,6 +123,18 @@ input::placeholder {
   font-size: 24px;
   font-weight: 600;
   opacity: 0.7;
+  pointer-events: none;
+}
+
+/* Remove default browser arrows from number inputs */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 
 .hint {
