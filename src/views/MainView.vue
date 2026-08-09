@@ -114,12 +114,14 @@
     v-model="showAddModal"
     @transaction="handleTransaction"
   />
+  <InstallPrompt />
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AddExpenseModal from '../components/modals/AddExpenseModal.vue'
+import InstallPrompt from '../components/InstallPrompt.vue'
 
 const router = useRouter()
 
