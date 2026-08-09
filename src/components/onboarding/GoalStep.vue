@@ -74,7 +74,7 @@
     <button class="skip-btn" @click="skipGoal">Пропустить</button>
 
     <!-- Слайдер процента -->
-    <div v-if="modelValue.selectedGoal" class="slider-section">
+    <div v-if="modelValue.selectedGoal && freeMoney >= 0" class="slider-section">
       <label>
         Направляешь на цель:
         <span class="percent-value">{{ modelValue.savingsPercent }}%</span>
@@ -98,6 +98,16 @@
           <div class="stat-value">{{ formatMoney(dailyLimit) }} ₽</div>
           <div class="stat-label">Можно тратить в день</div>
         </div>
+      </div>
+    </div>
+    
+    <!-- Сообщение о долге -->
+    <div v-if="modelValue.selectedGoal && freeMoney < 0" class="debt-warning-section">
+      <div class="debt-warning-icon">⚠️</div>
+      <div class="debt-warning-title">Расходы превышают доход</div>
+      <div class="debt-warning-text">
+        Ежемесячный дефицит: <strong>{{ formatMoney(Math.abs(freeMoney)) }} ₽</strong><br>
+        Нужно откладывать {{ formatMoney(dailyLimit) }} ₽ в день, чтобы покрыть долг
       </div>
     </div>
   </div>
@@ -187,16 +197,18 @@ const freeMoney = computed(() => {
   const income = Number(props.modelValue.income) || 0
   const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0) +
                         props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-  return Math.max(0, income - totalExpenses)
+  return income - totalExpenses
 })
 
 const goalMonthly = computed(() => {
+  // Если есть дефицит, цели не применяются
+  if (freeMoney.value < 0) return 0
   if (!props.modelValue.selectedGoal) return 0
   return freeMoney.value * (props.modelValue.savingsPercent / 100)
 })
 
 const goalMonths = computed(() => {
-  if (!props.modelValue.selectedGoal || goalMonthly.value === 0) return null
+  if (freeMoney.value < 0 || !props.modelValue.selectedGoal || goalMonthly.value === 0) return null
   return Math.ceil(props.modelValue.goalAmount / goalMonthly.value)
 })
 
@@ -210,6 +222,10 @@ const goalMonthsText = computed(() => {
 })
 
 const dailyLimit = computed(() => {
+  // Если расходы превышают доходы - показываем ежедневный долг
+  if (freeMoney.value < 0) {
+    return Math.ceil(Math.abs(freeMoney.value) / DEFAULT_DAYS_TO_SALARY)
+  }
   const remainingAfterGoal = freeMoney.value - goalMonthly.value
   return Math.max(0, Math.floor(remainingAfterGoal / DEFAULT_DAYS_TO_SALARY))
 })
@@ -489,5 +505,42 @@ input[type="range"]::-webkit-slider-thumb {
 .stat-label {
   font-size: 12px;
   opacity: 0.7;
+}
+
+.debt-warning-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  background: rgba(239, 68, 68, 0.15);
+  border: 2px solid rgba(239, 68, 68, 0.4);
+  border-radius: 16px;
+  margin-top: 24px;
+  width: 100%;
+  max-width: 400px;
+}
+
+.debt-warning-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.debt-warning-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ef4444;
+  margin-bottom: 8px;
+}
+
+.debt-warning-text {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.8);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.debt-warning-text strong {
+  color: #ef4444;
+  font-weight: 700;
 }
 </style>

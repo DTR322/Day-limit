@@ -1,38 +1,67 @@
-```
-# Build artifacts
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
 dist/
+build/
+target/
+
+# Dependencies
+.venv/
+venv/
+node_modules/
+.pnpm-store/
+.yarn/
+.yarn-cache/
+.npm/
+.bower/
+.bower_components/
 
 # Logs and temp files
 *.log
 *.tmp
+*.swp
+*.swo
+*.out
 
 # Environment
 .env
 .env.local
-*.env.*
+.env.*
 
 # Editors
 .vscode/
 .idea/
-
-# Logs and temp files
-*.log
-*.tmp
-*.swp
-
-# Temporary files
-*.tmp
-*.swp
-
-# Compiled Python
-*.pyc
-__pycache__/
-
-# System files
+*.sublime-project
+*.sublime-workspace
 .DS_Store
 Thumbs.db
 
-# Compressed files
+# Coverage and testing
+coverage/
+htmlcov/
+.coverage
+*.coverage
+.pytest_cache/
+.mypy_cache/
+.nyc_output/
+coverage-final.json
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+*.crdownload
+
+# Build outputs
+*.min.js
+*.min.css
+bundle.js
 *.zip
 *.gz
 *.tar
@@ -55,12 +84,3 @@ Thumbs.db
 *.tar.bz2
 *.tar.xz
 *.tar.zst
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Testing
-.pytest_cache/
-.mypy_cache/
-```

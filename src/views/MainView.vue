@@ -2,15 +2,20 @@
   <div class="container">
     <!-- Главная карточка -->
     <div class="limit-card" :class="limitCardClass">
-      <div class="limit-label">Можно потратить сегодня</div>
+      <div class="limit-label">{{ data.hasDebtScenario ? 'Нужно отложить сегодня' : 'Можно потратить сегодня' }}</div>
       <div class="limit-amount">{{ formatMoney(displayLimit) }} ₽</div>
-      <div class="limit-hint">До зарплаты {{ data.daysRemaining }} {{ getDaysWord(data.daysRemaining) }}</div>
+      <div v-if="data.hasDebtScenario" class="limit-hint limit-debt-hint">
+        Ежедневный долг: {{ formatMoney(data.dailyDebt) }} ₽ • До зарплаты {{ data.daysRemaining }} {{ getDaysWord(data.daysRemaining) }}
+      </div>
+      <div v-else class="limit-hint">
+        До зарплаты {{ data.daysRemaining }} {{ getDaysWord(data.daysRemaining) }}
+      </div>
     </div>
     
     <!-- Прогресс -->
     <div class="progress-card">
       <div class="progress-header">
-        <span>Потрачено сегодня</span>
+        <span>{{ data.hasDebtScenario ? 'Отложено сегодня' : 'Потрачено сегодня' }}</span>
         <span>{{ formatMoney(data.totalSpentToday) }} ₽ / {{ formatMoney(data.dailyLimit) }} ₽</span>
       </div>
       <div class="progress-bar">
@@ -26,13 +31,31 @@
       </div>
       <div class="metric">
         <div class="metric-value">{{ formatMoney(data.availableMoney) }} ₽</div>
-        <div class="metric-label">доступно в месяц</div>
+        <div class="metric-label">{{ data.hasDebtScenario ? 'дефицит в месяц' : 'доступно в месяц' }}</div>
       </div>
       <div class="metric">
-        <div class="metric-value" :class="{ debt: data.debt > 0 }">
-          {{ data.debt > 0 ? '-' + formatMoney(data.debt) + ' ₽' : formatMoney(data.remainingGoal) + ' ₽' }}
+        <div class="metric-value" :class="{ debt: data.debt > 0 || data.hasDebtScenario }">
+          <template v-if="data.hasDebtScenario">
+            -{{ formatMoney(data.monthlyDeficit) }} ₽
+          </template>
+          <template v-else-if="data.debt > 0">
+            -{{ formatMoney(data.debt) }} ₽
+          </template>
+          <template v-else>
+            {{ formatMoney(data.remainingGoal) }} ₽
+          </template>
         </div>
-        <div class="metric-label">{{ data.debt > 0 ? 'долг' : 'из ' + formatMoney(data.initialGoal) + ' ₽' }}</div>
+        <div class="metric-label">
+          <template v-if="data.hasDebtScenario">
+            ежемесячный долг
+          </template>
+          <template v-else-if="data.debt > 0">
+            долг
+          </template>
+          <template v-else>
+            из {{ formatMoney(data.initialGoal) }} ₽
+          </template>
+        </div>
       </div>
     </div>
 
@@ -173,12 +196,15 @@ const data = computed(() => {
       availableMoney: 0, 
       remainingGoal: 0, 
       debt: 0, 
+      monthlyDeficit: 0,
+      dailyDebt: 0,
       daysRemaining: 0, 
       dailyLimit: 0, 
       totalSpentMonth: 0, 
       totalSpentToday: 0, 
       remainingToday: 0,
-      initialGoal: 0
+      initialGoal: 0,
+      hasDebtScenario: false
     }
   }
 
@@ -195,10 +221,29 @@ const data = computed(() => {
 
   const fixedExpenses = rent + utilities + food + transport + credits + customExpensesTotal
   const income = Number(s.income) || 0
+  
+  // Новая логика: если расходы > доходов, то это ежемесячный дефицит (долг)
+  const monthlyDeficit = Math.max(0, fixedExpenses - income)
   const freeMoney = Math.max(0, income - fixedExpenses)
+  const hasDebtScenario = monthlyDeficit > 0
 
-  const savingsPercent = Number(s.savings) || 0
-  const monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+  let savingsPercent = Number(s.savings) || 0
+  let monthlyBudget = 0
+  let dailyLimit = 0
+  let dailyDebt = 0
+
+  if (hasDebtScenario) {
+    // Сценарий с долгом: никаких целей, весь дефицит делится на дни
+    savingsPercent = 0
+    monthlyBudget = 0
+    dailyDebt = monthlyDeficit / daysRemaining
+    dailyLimit = 0
+  } else {
+    // Обычный сценарий: есть свободные деньги
+    monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+    const daysRemaining = Math.max(1, Number(s.daysToSalary) || 30)
+    dailyLimit = monthlyBudget / daysRemaining
+  }
 
   const daysRemaining = Math.max(1, Number(s.daysToSalary) || 30)
 
@@ -212,7 +257,6 @@ const data = computed(() => {
 
   // Доступные деньги = бюджет + то, что мы уже вытащили из цели - потраченное
   const availableMoney = Math.max(0, monthlyBudget + savingsUsed - totalSpentMonth)
-  const dailyLimit = availableMoney / daysRemaining
   const remainingToday = dailyLimit - totalSpentToday
 
   // Сколько реально осталось от изначальной цели
@@ -225,6 +269,9 @@ const data = computed(() => {
     availableMoney, 
     remainingGoal,
     debt, 
+    monthlyDeficit,
+    dailyDebt,
+    hasDebtScenario,
     daysRemaining, 
     dailyLimit,
     totalSpentMonth, 
@@ -234,9 +281,17 @@ const data = computed(() => {
   }
 })
 
-const displayLimit = computed(() => Math.max(0, data.value.remainingToday))
+const displayLimit = computed(() => {
+  // В сценарии с долгом показываем dailyDebt, иначе remainingToday
+  if (data.value.hasDebtScenario) {
+    return data.value.dailyDebt
+  }
+  return Math.max(0, data.value.remainingToday)
+})
 
 const limitCardClass = computed(() => {
+  // В сценарии с долгом всегда показываем красный/тревожный стиль
+  if (data.value.hasDebtScenario) return 'debt-scenario'
   const remainingToday = data.value.remainingToday
   if (remainingToday < 0) return 'overspent'
   if (remainingToday < LIMIT_DANGER_THRESHOLD) return 'danger'
@@ -247,12 +302,18 @@ const limitCardClass = computed(() => {
 const progressPercent = computed(() => {
   const dailyLimit = data.value.dailyLimit
   const totalSpentToday = data.value.totalSpentToday
+  // В сценарии с долгом прогресс показывает отношение потраченного к ежедневному долгу
+  if (data.value.hasDebtScenario && data.value.dailyDebt > 0) {
+    return Math.min((totalSpentToday / data.value.dailyDebt) * 100, 100)
+  }
   return dailyLimit > 0 ? Math.min((totalSpentToday / dailyLimit) * 100, 100) : 0
 })
 
 const progressFillClass = computed(() => {
   const remainingToday = data.value.remainingToday
   const progress = progressPercent.value
+  // В сценарии с долгом всегда показываем danger
+  if (data.value.hasDebtScenario) return 'danger'
   if (remainingToday < 0 || progress > PROGRESS_DANGER_PERCENT) return 'danger'
   if (progress > PROGRESS_WARNING_PERCENT) return 'warning'
   return ''
@@ -396,6 +457,16 @@ onMounted(() => {
 
 .limit-card.overspent {
   background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
+}
+
+.limit-card.debt-scenario {
+  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
+}
+
+.limit-debt-hint {
+  font-size: 12px;
+  opacity: 0.85;
+  margin-top: 4px;
 }
 
 .limit-label {

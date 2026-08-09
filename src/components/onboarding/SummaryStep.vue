@@ -2,13 +2,19 @@
   <div class="onboarding-step">
     <div class="step-header">
       <span class="step-label">Шаг 3 из 5</span>
-      <h2>Твои свободные деньги</h2>
+      <h2>{{ monthlyDeficit > 0 ? 'Ежемесячный дефицит' : 'Твои свободные деньги' }}</h2>
     </div>
     
-    <div class="summary-section">
-      <div class="big-number">{{ formatMoney(freeMoney) }}</div>
-      <div class="big-currency">₽ в месяц</div>
-      <p class="calc-hint">
+    <div class="summary-section" :class="{ 'is-deficit': monthlyDeficit > 0 }">
+      <div v-if="monthlyDeficit > 0" class="deficit-icon">⚠️</div>
+      <div class="big-number" :class="{ 'is-negative': monthlyDeficit > 0 }">
+        {{ formatMoney(monthlyDeficit > 0 ? monthlyDeficit : freeMoney) }}
+      </div>
+      <div class="big-currency">{{ monthlyDeficit > 0 ? '₽ дефицит в месяц' : '₽ в месяц' }}</div>
+      <p v-if="monthlyDeficit > 0" class="deficit-hint">
+        Расходы превышают доход на {{ formatMoney(monthlyDeficit) }} ₽
+      </p>
+      <p v-else class="calc-hint">
         {{ formatMoney(income) }} − {{ formatMoney(totalExpenses) }} = {{ formatMoney(freeMoney) }} ₽
       </p>
     </div>
@@ -36,6 +42,10 @@ const totalExpenses = computed(() => {
   return base + custom
 })
 const freeMoney = computed(() => Math.max(0, income.value - totalExpenses.value))
+const monthlyDeficit = computed(() => {
+  const diff = totalExpenses.value - income.value
+  return diff > 0 ? diff : 0
+})
 </script>
 
 <script>
@@ -83,6 +93,11 @@ h2 {
   font-weight: 800;
   line-height: 1;
   margin: 16px 0;
+  color: white;
+}
+
+.big-number.is-negative {
+  color: #ef4444;
 }
 
 .big-currency {
@@ -95,5 +110,24 @@ h2 {
   font-size: 14px;
   opacity: 0.6;
   font-family: monospace;
+}
+
+.summary-section.is-deficit {
+  background: rgba(239, 68, 68, 0.1);
+  padding: 24px;
+  border-radius: 16px;
+  border: 2px solid rgba(239, 68, 68, 0.3);
+}
+
+.deficit-icon {
+  font-size: 48px;
+  margin-bottom: 8px;
+}
+
+.deficit-hint {
+  font-size: 14px;
+  color: #ef4444;
+  opacity: 0.9;
+  margin-top: 8px;
 }
 </style>
