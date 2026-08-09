@@ -8,7 +8,7 @@
     <div class="summary-section" :class="{ 'is-deficit': monthlyDeficit > 0 }">
       <div v-if="monthlyDeficit > 0" class="deficit-icon">⚠️</div>
       <div class="big-number" :class="{ 'is-negative': monthlyDeficit > 0 }">
-        {{ formatMoney(monthlyDeficit > 0 ? monthlyDeficit : freeMoney) }}
+        {{ formatMoney(monthlyDeficit) }}
       </div>
       <div class="big-currency">{{ monthlyDeficit > 0 ? '₽ дефицит в месяц' : '₽ в месяц' }}</div>
       <p v-if="monthlyDeficit > 0" class="deficit-hint">
@@ -41,7 +41,7 @@ const totalExpenses = computed(() => {
   const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   return base + custom
 })
-const freeMoney = computed(() => Math.max(0, income.value - totalExpenses.value))
+const freeMoney = computed(() => income.value - totalExpenses.value)
 const monthlyDeficit = computed(() => {
   const diff = totalExpenses.value - income.value
   return diff > 0 ? diff : 0
