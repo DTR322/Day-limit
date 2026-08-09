@@ -112,10 +112,6 @@ const totalExpenses = computed(() => {
 })
 </script>
 
-<script>
-import { computed } from 'vue'
-</script>
-
 <style scoped>
 .onboarding-step {
   display: flex;
@@ -145,6 +141,44 @@ h2 {
   margin: 0;
   max-width: 400px;
 }
+
+/* === ОБЩЕЕ ПРАВИЛО ИНПУТОВ — СТОИТ ДО ЧАСТНЫХ, КАК В МОНОЛИТЕ === */
+input[type="number"],
+input[type="text"] {
+  width: 100%;
+  padding: 20px;
+  font-size: 32px;
+  font-weight: 700;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 16px;
+  color: white;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+input[type="number"]:focus,
+input[type="text"]:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+/* Убираем стрелки у number-инпутов */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* === ЧАСТНЫЕ ПРАВИЛА — ПОСЛЕ ОБЩЕГО, ПОЭТОМУ ПОБЕЖДАЮТ === */
 
 .expenses-list {
   width: 100%;
@@ -179,10 +213,12 @@ h2 {
   max-width: 140px;
 }
 
+/* Идёт ПОСЛЕ общего правила → перебивает padding и font-size */
 .expense-input input {
   width: 100%;
   padding: 12px 35px 12px 12px;
   font-size: 18px;
+  font-weight: 500;
   text-align: right;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
@@ -209,11 +245,25 @@ h2 {
   color: rgba(255, 255, 255, 0.7);
 }
 
-.custom-name {
+/* Символ — как в монолите: absolute + центрирование, но 20px и ближе к числу */
+.currency-sm {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 20px;
+  font-weight: 600;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+/* input.custom-name специфичнее общего input[type="text"] */
+input.custom-name {
   flex: 1;
   min-width: 120px;
   padding: 12px;
   font-size: 16px;
+  font-weight: 500;
   text-align: left;
 }
 
@@ -263,39 +313,5 @@ h2 {
 .total-amount {
   font-size: 20px;
   font-weight: 700;
-}
-
-/* Input styles */
-input[type="number"],
-input[type="text"] {
-  width: 100%;
-  padding: 12px;
-  font-size: 16px;
-  background: rgba(255, 255, 255, 0.1);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  color: white;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-input[type="number"]:focus,
-input[type="text"]:focus {
-  border-color: rgba(255, 255, 255, 0.5);
-}
-
-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
-}
-
-/* Remove default browser arrows from number inputs */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  -moz-appearance: textfield;
 }
 </style>

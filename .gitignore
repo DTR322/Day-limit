@@ -1,10 +1,6 @@
 ```
 # Build artifacts
 dist/
-build/
-
-# Dependencies
-node_modules/
 
 # Logs and temp files
 *.log
@@ -19,18 +15,24 @@ node_modules/
 .vscode/
 .idea/
 
-# Python
-__pycache__/
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+
+# Temporary files
+*.tmp
+*.swp
+
+# Compiled Python
 *.pyc
-*.pyo
-*.pyd
+__pycache__/
 
-# Coverage
-coverage/
-htmlcov/
-.coverage
+# System files
+.DS_Store
+Thumbs.db
 
-# Compression
+# Compressed files
 *.zip
 *.gz
 *.tar
