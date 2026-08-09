@@ -75,6 +75,8 @@ const onboardingData = ref({
     transport: 0,
     credits: 0
   },
+  totalDebt: 0,     // сколько всего должен
+  totalSavings: 0,   // сколько уже накопил
   customExpenses: [],
   selectedGoal: null,
   goalAmount: 0,
@@ -104,6 +106,7 @@ function prev() {
 }
 
 function finish() {
+  const today = new Date()
   const settings = {
     income: Number(onboardingData.value.income) || 0,
     rent: Number(onboardingData.value.expenses.rent) || 0,
@@ -115,9 +118,11 @@ function finish() {
     savings: Number(onboardingData.value.savingsPercent) || 0,
     goal: onboardingData.value.selectedGoal,
     goalAmount: Number(onboardingData.value.goalAmount) || 0,
-    daysToSalary: DEFAULT_DAYS_TO_SALARY,
-    savingsUsed: 0,
-    debt: 0
+    totalSavings: Number(onboardingData.value.totalSavings) || 0,
+    totalDebt: Number(onboardingData.value.totalDebt) || 0,
+    // Новые поля для автоматического пересчёта
+    lastPayday: today.toISOString().split('T')[0], // YYYY-MM-DD
+    payCycle: 30 // дней между зарплатами
   }
 
   localStorage.setItem('daylimit-settings', JSON.stringify(settings))

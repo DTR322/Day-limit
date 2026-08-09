@@ -2,53 +2,81 @@
   <div class="onboarding-step">
     <div class="step-header">
       <span class="step-label">Шаг 4 из 5</span>
-      <h2>Какая у тебя цель?</h2>
+      <h2>На что копишь?</h2>
     </div>
 
     <div class="goals-list">
-      <!-- Цель: Накопления -->
-      <div 
-        class="goal-option" 
-        :class="{ active: modelValue.selectedGoal === 'savings' }"
-        @click="selectGoal('savings')"
+      <!-- Подушка безопасности -->
+      <div
+        class="goal-option"
+        :class="{ active: modelValue.selectedGoal === 'safety' }"
+        @click="selectGoal('safety')"
       >
-        <div class="goal-icon">💰</div>
+        <div class="goal-icon">🛡️</div>
         <div class="goal-info">
-          <span class="goal-name">Накопления</span>
-          <span class="goal-desc">Откладывать на мечту</span>
+          <span class="goal-name">Подушка безопасности</span>
+          <span class="goal-desc">{{ safetyTarget > 0 ? formatMoney(safetyTarget) + ' ₽' : 'Подушка уже собрана' }}</span>
+        </div>
+        <span class="badge">Рекомендуем</span>
+      </div>
+
+      <!-- Машина -->
+      <div
+        class="goal-option"
+        :class="{ active: modelValue.selectedGoal === 'car' }"
+        @click="selectGoal('car')"
+      >
+        <div class="goal-icon">🚗</div>
+        <div class="goal-info">
+          <span class="goal-name">Машина</span>
+          <span class="goal-desc">например, 1 500 000 ₽</span>
         </div>
       </div>
 
-      <!-- Цель: Закрыть долги -->
-      <div 
-        class="goal-option" 
+      <!-- Отпуск -->
+      <div
+        class="goal-option"
+        :class="{ active: modelValue.selectedGoal === 'vacation' }"
+        @click="selectGoal('vacation')"
+      >
+        <div class="goal-icon">✈️</div>
+        <div class="goal-info">
+          <span class="goal-name">Отпуск</span>
+          <span class="goal-desc">например, 100 000 ₽</span>
+        </div>
+      </div>
+
+      <!-- Закрыть долги — показываем только если долги есть -->
+      <div
+        v-if="debtTarget > 0"
+        class="goal-option"
         :class="{ active: modelValue.selectedGoal === 'debt' }"
         @click="selectGoal('debt')"
       >
         <div class="goal-icon">📉</div>
         <div class="goal-info">
           <span class="goal-name">Закрыть долги</span>
-          <span class="goal-desc">Досрочное погашение кредитов</span>
+          <span class="goal-desc">{{ formatMoney(debtTarget) }} ₽</span>
         </div>
       </div>
 
-      <!-- Кастомная цель -->
-      <div 
-        class="goal-option custom" 
+      <!-- Своя цель -->
+      <div
+        class="goal-option custom"
         :class="{ active: modelValue.selectedGoal === 'custom' }"
         @click="selectGoal('custom')"
       >
         <div class="goal-icon">✨</div>
         <div class="goal-info" v-if="modelValue.selectedGoal !== 'custom'">
           <span class="goal-name">Своя цель</span>
-          <span class="goal-desc">Например: ремонт, путешествие</span>
+          <span class="goal-desc">Например: ремонт, свадьба</span>
         </div>
         <div class="goal-input-wrapper" v-else>
           <input
             type="text"
-            v-model="customGoalName"
-            @input="updateCustomName"
-            placeholder="Название вашей цели"
+            :value="modelValue.customGoalName"
+            @input="emitUpdate('customGoalName', $event.target.value)"
+            placeholder="Название цели"
             class="custom-goal-input"
             autofocus
           />
@@ -56,22 +84,20 @@
       </div>
     </div>
 
-    <!-- Сумма цели (редактируемая) -->
+    <!-- Редактируемая сумма цели -->
     <div v-if="modelValue.selectedGoal" class="goal-amount-wrapper">
-      <label>Целевая сумма:</label>
-      <div class="input-wrapper small">
+      <label>Сколько нужно накопить:</label>
+      <div class="amount-input-wrapper">
         <input
           type="number"
           :value="modelValue.goalAmount"
           @input="emitUpdate('goalAmount', $event.target.value)"
-          placeholder="100000"
+          placeholder="0"
           inputmode="numeric"
         />
         <span class="currency">₽</span>
       </div>
     </div>
-
-    <button class="skip-btn" @click="skipGoal">Пропустить</button>
 
     <!-- Слайдер процента -->
     <div v-if="modelValue.selectedGoal && freeMoney >= 0" class="slider-section">
@@ -100,21 +126,21 @@
         </div>
       </div>
     </div>
-    
-    <!-- Сообщение о долге -->
+
+    <!-- Если дефицит -->
     <div v-if="modelValue.selectedGoal && freeMoney < 0" class="debt-warning-section">
       <div class="debt-warning-icon">⚠️</div>
       <div class="debt-warning-title">Расходы превышают доход</div>
       <div class="debt-warning-text">
-        Ежемесячный долг: <strong>{{ formatMoney(Math.abs(freeMoney)) }} ₽</strong><br>
-        Нужно откладывать {{ formatMoney(dailyLimit) }} ₽ в день, чтобы покрыть долг
+        Ежемесячный дефицит: <strong>{{ formatMoney(Math.abs(freeMoney)) }} ₽</strong>.<br>
+        Сначала закрой дыру в бюджете — потом цели.
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -125,15 +151,6 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const customGoalName = ref('')
-
-// Синхронизация имени кастомной цели при переключении
-watch(() => props.modelValue.selectedGoal, (newGoal) => {
-  if (newGoal === 'custom' && !customGoalName.value) {
-    customGoalName.value = props.modelValue.customGoalName || ''
-  }
-}, { immediate: true })
-
 const DEFAULT_DAYS_TO_SALARY = 30
 
 function formatMoney(amount) {
@@ -141,75 +158,53 @@ function formatMoney(amount) {
 }
 
 function emitUpdate(field, value) {
-  const newValue = { ...props.modelValue, [field]: Number(value) || 0 }
-  emit('update:modelValue', newValue)
+  emit('update:modelValue', { ...props.modelValue, [field]: Number(value) || 0 })
 }
 
+// Сумма всех обязательных расходов
+const totalExpenses = computed(() => {
+  const base = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0)
+  const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+  return base + custom
+})
+
+const freeMoney = computed(() => (Number(props.modelValue.income) || 0) - totalExpenses.value)
+
+// Подушка = 3 расхода минус то, что уже накоплено
+const safetyTarget = computed(() => {
+  const base = totalExpenses.value * 3
+  const already = Number(props.modelValue.totalSavings) || 0
+  return Math.max(0, base - already)
+})
+
+// Долги = то, что человек указал сам на шаге 3
+const debtTarget = computed(() => Number(props.modelValue.totalDebt) || 0)
+
 function selectGoal(goalId) {
-  let newGoalAmount = 0
-  
-  if (goalId === 'debt') {
-    // Для долгов считаем сумму всех кредитов
-    const creditsExpense = Number(props.modelValue.expenses.credits) || 0
-    const customDebts = props.modelValue.customExpenses
-      .filter(item => item.name.toLowerCase().includes('долг') || item.name.toLowerCase().includes('кредит'))
-      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-    newGoalAmount = (creditsExpense * 12) + customDebts // Год платежей + доп долги
-  } else if (goalId === 'savings') {
-    // Подушка безопасности = 3 обязательных расхода
-    const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0) +
-                          props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-    newGoalAmount = totalExpenses * 3
-  } else if (goalId === 'custom') {
-    newGoalAmount = props.modelValue.goalAmount || 100000
+  const defaults = {
+    safety: safetyTarget.value,
+    car: 1500000,
+    vacation: 100000,
+    debt: debtTarget.value,
+    custom: props.modelValue.goalAmount || 100000
   }
-  
+
   emit('update:modelValue', {
     ...props.modelValue,
     selectedGoal: goalId,
-    goalAmount: newGoalAmount,
-    savingsPercent: 20,
-    customGoalName: goalId === 'custom' ? (customGoalName.value || 'Моя цель') : ''
+    goalAmount: defaults[goalId],
+    savingsPercent: props.modelValue.savingsPercent || 20
   })
 }
-
-function updateCustomName() {
-  if (props.modelValue.selectedGoal === 'custom') {
-    emit('update:modelValue', {
-      ...props.modelValue,
-      customGoalName: customGoalName.value || 'Моя цель'
-    })
-  }
-}
-
-function skipGoal() {
-  emit('update:modelValue', {
-    ...props.modelValue,
-    selectedGoal: null,
-    goalAmount: 0,
-    savingsPercent: 0,
-    customGoalName: ''
-  })
-}
-
-// Вычисляемые значения
-const freeMoney = computed(() => {
-  const income = Number(props.modelValue.income) || 0
-  const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0) +
-                        props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-  return income - totalExpenses
-})
 
 const goalMonthly = computed(() => {
-  // Если есть дефицит, цели не применяются
-  if (freeMoney.value < 0) return 0
-  if (!props.modelValue.selectedGoal) return 0
-  return freeMoney.value * (props.modelValue.savingsPercent / 100)
+  if (freeMoney.value < 0 || !props.modelValue.selectedGoal) return 0
+  return freeMoney.value * ((Number(props.modelValue.savingsPercent) || 0) / 100)
 })
 
 const goalMonths = computed(() => {
   if (freeMoney.value < 0 || !props.modelValue.selectedGoal || goalMonthly.value === 0) return null
-  return Math.ceil(props.modelValue.goalAmount / goalMonthly.value)
+  return Math.ceil((Number(props.modelValue.goalAmount) || 0) / goalMonthly.value)
 })
 
 const goalMonthsText = computed(() => {
@@ -222,41 +217,12 @@ const goalMonthsText = computed(() => {
 })
 
 const dailyLimit = computed(() => {
-  // Если расходы превышают доходы - показываем ежедневный долг
   if (freeMoney.value < 0) {
     return Math.ceil(Math.abs(freeMoney.value) / DEFAULT_DAYS_TO_SALARY)
   }
   const remainingAfterGoal = freeMoney.value - goalMonthly.value
   return Math.max(0, Math.floor(remainingAfterGoal / DEFAULT_DAYS_TO_SALARY))
 })
-
-// Автопересчёт суммы цели при изменении расходов
-watch(
-  () => ({
-    expenses: props.modelValue.expenses,
-    customExpenses: props.modelValue.customExpenses
-  }),
-  (newVal) => {
-    if (props.modelValue.selectedGoal === 'safety') {
-      const totalExpenses = Object.values(newVal.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0) +
-                            newVal.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-      emit('update:modelValue', {
-        ...props.modelValue,
-        goalAmount: totalExpenses * 3
-      })
-    } else if (props.modelValue.selectedGoal === 'debt') {
-      const creditsExpense = Number(newVal.expenses.credits) || 0
-      const customDebts = newVal.customExpenses
-        .filter(item => item.name.toLowerCase().includes('долг') || item.name.toLowerCase().includes('кредит'))
-        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-      emit('update:modelValue', {
-        ...props.modelValue,
-        goalAmount: (creditsExpense * 12) + customDebts
-      })
-    }
-  },
-  { deep: true }
-)
 </script>
 
 <style scoped>
@@ -344,6 +310,16 @@ h2 {
   margin-top: 2px;
 }
 
+.badge {
+  padding: 4px 8px;
+  background: #10b981;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: white;
+}
+
 .goal-input-wrapper {
   margin-top: 12px;
   width: 100%;
@@ -358,6 +334,7 @@ h2 {
   border-radius: 8px;
   color: white;
   outline: none;
+  box-sizing: border-box;
 }
 
 .custom-goal-input:focus {
@@ -369,7 +346,9 @@ h2 {
 }
 
 .goal-amount-wrapper {
-  margin-bottom: 16px;
+  width: 100%;
+  max-width: 400px;
+  margin-bottom: 20px;
 }
 
 .goal-amount-wrapper label {
@@ -379,69 +358,39 @@ h2 {
   margin-bottom: 8px;
 }
 
-.input-wrapper.small {
+.amount-input-wrapper {
   position: relative;
-  width: 100%;
   max-width: 240px;
   margin: 0 auto;
 }
 
-input[type="number"] {
+.amount-input-wrapper input {
   width: 100%;
-  padding: 16px 40px 16px 16px;
-  font-size: 24px;
+  padding: 14px 40px 14px 14px;
+  font-size: 22px;
   font-weight: 700;
-  text-align: center;
+  text-align: right;
   background: rgba(255, 255, 255, 0.1);
   border: 2px solid rgba(255, 255, 255, 0.2);
-  border-radius: 16px;
+  border-radius: 12px;
   color: white;
   outline: none;
-  transition: border-color 0.2s;
   box-sizing: border-box;
 }
 
-input[type="number"]:focus {
+.amount-input-wrapper input:focus {
   border-color: rgba(255, 255, 255, 0.5);
-}
-
-input::placeholder {
-  color: rgba(255, 255, 255, 0.4);
 }
 
 .currency {
   position: absolute;
-  right: 20px;
+  right: 14px;
   top: 50%;
   transform: translateY(-50%);
-  font-size: 24px;
+  font-size: 18px;
   font-weight: 600;
   opacity: 0.7;
   pointer-events: none;
-}
-
-/* Remove default browser arrows from number inputs */
-input[type="number"]::-webkit-inner-spin-button,
-input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-.skip-btn {
-  padding: 12px 24px;
-  background: transparent;
-  border: none;
-  color: rgba(255, 255, 255, 0.6);
-  font-size: 14px;
-  cursor: pointer;
-  margin-bottom: 24px;
-}
-
-.skip-btn:hover {
   color: white;
 }
 
@@ -515,13 +464,13 @@ input[type="range"]::-webkit-slider-thumb {
   background: rgba(239, 68, 68, 0.15);
   border: 2px solid rgba(239, 68, 68, 0.4);
   border-radius: 16px;
-  margin-top: 24px;
+  margin-top: 8px;
   width: 100%;
   max-width: 400px;
 }
 
 .debt-warning-icon {
-  font-size: 48px;
+  font-size: 40px;
   margin-bottom: 12px;
 }
 
@@ -542,5 +491,19 @@ input[type="range"]::-webkit-slider-thumb {
 .debt-warning-text strong {
   color: #ef4444;
   font-weight: 700;
+}
+
+input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
 }
 </style>

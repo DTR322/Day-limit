@@ -65,14 +65,22 @@
 <script setup>
 import { computed } from 'vue'
 
+/**
+ * @typedef {Object} OnboardingData
+ * @property {number} income
+ * @property {{rent: number, utilities: number, food: number, transport: number, credits: number}} expenses
+ * @property {Array<{name: string, amount: number}>} customExpenses
+ * @property {string|null} selectedGoal
+ * @property {number} goalAmount
+ * @property {number} savingsPercent
+ * @property {string} customGoalName
+ */
+
 const props = defineProps({
+  /** Общий объект онбординга, доход берём из него */
   modelValue: {
     type: Object,
     required: true
-  },
-  income: {
-    type: Number,
-    default: 0
   }
 })
 
@@ -83,7 +91,7 @@ const expenseCategories = {
   utilities: 'Коммуналка',
   food: 'Еда',
   transport: 'Транспорт',
-  credits: 'Кредиты'
+  credits: 'Платёж по кредиту в месяц'
 }
 
 function formatMoney(amount) {
@@ -93,19 +101,12 @@ function formatMoney(amount) {
 function emitExpenseUpdate(key, value) {
   const numVal = Number(value) || 0
   const newExpenses = { ...props.modelValue.expenses, [key]: numVal }
-
-  // Автоматически обновляем цель "Долги", если изменились кредиты или доп долги
-  updateDebtsGoal(newExpenses, props.modelValue.customExpenses)
-
   emit('update:modelValue', { ...props.modelValue, expenses: newExpenses })
 }
 
 function emitCustomNameUpdate(idx, value) {
   const newCustom = [...props.modelValue.customExpenses]
   newCustom[idx] = { ...newCustom[idx], name: value }
-
-  updateDebtsGoal(props.modelValue.expenses, newCustom)
-
   emit('update:modelValue', { ...props.modelValue, customExpenses: newCustom })
 }
 
@@ -113,9 +114,6 @@ function emitCustomAmountUpdate(idx, value) {
   const numVal = Number(value) || 0
   const newCustom = [...props.modelValue.customExpenses]
   newCustom[idx] = { ...newCustom[idx], amount: numVal }
-
-  updateDebtsGoal(props.modelValue.expenses, newCustom)
-
   emit('update:modelValue', { ...props.modelValue, customExpenses: newCustom })
 }
 
@@ -126,51 +124,7 @@ function addCustomExpense() {
 
 function removeCustom(idx) {
   const newCustom = props.modelValue.customExpenses.filter((_, i) => i !== idx)
-
-  updateDebtsGoal(props.modelValue.expenses, newCustom)
-
   emit('update:modelValue', { ...props.modelValue, customExpenses: newCustom })
-}
-
-// Логика расчета цели "Закрыть долги"
-function updateDebtsGoal(expenses, customExpenses) {
-  // Сумма ежемесячных платежей по кредитам
-  const credits = Number(expenses.credits) || 0
-
-  // Ищем пользовательскую категорию "Долги" или похожую
-  let extraDebts = 0
-  customExpenses.forEach(item => {
-    const name = (item.name || '').toLowerCase()
-    if (name.includes('долг') || name.includes('кредит')) {
-      extraDebts += Number(item.amount) || 0
-    }
-  })
-
-  const monthlyDebtPayment = credits + extraDebts
-  const yearlyDebtAmount = monthlyDebtPayment * 12
-
-  // Обновляем цель в модели, если она существует, или создаем структуру
-  // Мы предполагаем, что родительский компонент обрабатывает структуру goals,
-  // но здесь мы готовим данные для шага выбора целей
-  const currentGoals = props.modelValue.goals || {}
-
-  const newGoals = {
-    ...currentGoals,
-    debts: {
-      id: 'debts',
-      name: 'Закрыть долги',
-      amount: yearlyDebtAmount,
-      icon: '💸',
-      isCustom: false
-    }
-  }
-
-  emit('update:modelValue', {
-    ...props.modelValue,
-    expenses,
-    customExpenses,
-    goals: newGoals
-  })
 }
 
 const totalExpenses = computed(() => {
@@ -179,8 +133,9 @@ const totalExpenses = computed(() => {
   return base + custom
 })
 
+// Доход берём из общей модели — пропс income больше не нужен
 const monthlyDeficit = computed(() => {
-  const diff = totalExpenses.value - props.income
+  const diff = totalExpenses.value - (Number(props.modelValue.income) || 0)
   return diff > 0 ? diff : 0
 })
 </script>
@@ -254,7 +209,7 @@ h2 {
 
 .expense-input {
   width: 100%;
-  padding: 12px 35px 12px 12px; /* Место справа для символа */
+  padding: 12px 35px 12px 12px;
   font-size: 18px;
   text-align: right;
   background: rgba(255, 255, 255, 0.1);
@@ -351,12 +306,6 @@ h2 {
   opacity: 0.9;
 }
 
-/* Input global styles for consistency */
-input[type="number"],
-input[type="text"] {
-  box-sizing: border-box;
-}
-
 input::placeholder {
   color: rgba(255, 255, 255, 0.4);
 }
@@ -373,7 +322,6 @@ input::placeholder {
   color: white;
 }
 
-/* Remove default browser arrows */
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;

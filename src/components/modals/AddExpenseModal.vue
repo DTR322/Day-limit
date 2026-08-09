@@ -1,15 +1,14 @@
 <template>
   <div class="modal" v-show="modelValue">
     <div class="modal-backdrop" @click="emit('update:modelValue', false)"></div>
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
+    <div class="modal-content">
       <h3 class="modal-title">Новая трата</h3>
 
       <div class="categories">
-        <button 
-          v-for="cat in PRESET_CATEGORIES" 
+        <button
+          v-for="cat in PRESET_CATEGORIES"
           :key="cat.name"
-          class="cat-btn" 
+          class="cat-btn"
           @click="handleCategoryClick(cat)"
         >
           <span class="cat-icon">{{ cat.icon }}</span>
@@ -21,11 +20,12 @@
       <div class="custom-amount">
         <label>Своя сумма</label>
         <div class="input-group">
-          <input 
-            type="number" 
-            v-model.number="customAmount" 
-            placeholder="0" 
+          <input
+            type="number"
+            v-model.number="customAmount"
+            placeholder="0"
             min="1"
+            inputmode="numeric"
           />
           <span class="suffix">₽</span>
         </div>
@@ -33,10 +33,10 @@
 
       <div class="modal-buttons">
         <button class="btn-secondary" @click="emit('update:modelValue', false)">Отмена</button>
-        <button 
-          class="btn-primary" 
-          @click="handleCustomTransaction" 
-          :disabled="customAmount <= 0"
+        <button
+          class="btn-primary"
+          @click="handleCustomTransaction"
+          :disabled="!customAmount || customAmount <= 0"
         >
           Добавить
         </button>
@@ -68,7 +68,7 @@ const PRESET_CATEGORIES = [
 
 const customAmount = ref(0)
 
-// Сброс суммы при открытии модалки
+// Сброс суммы при закрытии модалки
 watch(
   () => props.modelValue,
   (isOpen) => {
@@ -109,57 +109,55 @@ function generateId() {
 <style scoped>
 .modal {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 
 .modal-backdrop {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: 0;
   background: rgba(0, 0, 0, 0.5);
+  animation: fadeIn 0.2s ease;
 }
 
-.modal-sheet {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: white;
-  border-radius: 20px 20px 0 0;
-  padding: 24px;
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 400px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: slideUp 0.3s ease;
+  background: white;
+  border-radius: 20px;
+  padding: 24px;
+  z-index: 1;
+  animation: popIn 0.2s ease;
 }
 
-@keyframes slideUp {
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes popIn {
   from {
-    transform: translateY(100%);
+    opacity: 0;
+    transform: scale(0.95);
   }
   to {
-    transform: translateY(0);
+    opacity: 1;
+    transform: scale(1);
   }
-}
-
-.modal-handle {
-  width: 40px;
-  height: 4px;
-  background: #e5e7eb;
-  border-radius: 2px;
-  margin: 0 auto 24px;
 }
 
 .modal-title {
   font-size: 20px;
   font-weight: 700;
   text-align: center;
-  margin-bottom: 24px;
+  margin: 0 0 24px;
   color: #1f2937;
 }
 
@@ -174,8 +172,8 @@ function generateId() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 16px;
+  gap: 6px;
+  padding: 14px 8px;
   background: #f3f4f6;
   border: 2px solid transparent;
   border-radius: 12px;
@@ -188,18 +186,22 @@ function generateId() {
   border-color: #d1d5db;
 }
 
+.cat-btn:active {
+  transform: scale(0.97);
+}
+
 .cat-icon {
-  font-size: 32px;
+  font-size: 28px;
 }
 
 .cat-name {
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   color: #374151;
 }
 
 .cat-amount {
-  font-size: 13px;
+  font-size: 12px;
   color: #6b7280;
 }
 
@@ -230,6 +232,7 @@ function generateId() {
   border-radius: 12px;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 .input-group input:focus {
@@ -242,6 +245,7 @@ function generateId() {
   font-size: 20px;
   font-weight: 600;
   color: #6b7280;
+  pointer-events: none;
 }
 
 .modal-buttons {
@@ -282,5 +286,16 @@ function generateId() {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* Убираем стандартные стрелки у number input */
+.input-group input[type="number"]::-webkit-inner-spin-button,
+.input-group input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-group input[type="number"] {
+  -moz-appearance: textfield;
 }
 </style>

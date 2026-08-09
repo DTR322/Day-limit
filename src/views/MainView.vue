@@ -11,7 +11,7 @@
         До зарплаты {{ data.daysRemaining }} {{ getDaysWord(data.daysRemaining) }}
       </div>
     </div>
-    
+
     <!-- Прогресс -->
     <div class="progress-card">
       <div class="progress-header">
@@ -33,7 +33,13 @@
         <div class="metric-value">{{ formatMoney(data.availableMoney) }} ₽</div>
         <div class="metric-label">{{ data.hasDebtScenario ? 'дефицит в месяц' : 'доступно в месяц' }}</div>
       </div>
-      <div class="metric">
+
+      <!-- Цель / долг -->
+      <div class="metric" :class="{ 'goal-metric': showGoalProgress }">
+        <div v-if="showGoalProgress" class="goal-progress-wrap">
+          <div class="goal-progress-fill" :style="{ width: data.goalProgressPercent + '%' }"></div>
+        </div>
+
         <div class="metric-value" :class="{ debt: data.debt > 0 || data.hasDebtScenario }">
           <template v-if="data.hasDebtScenario">
             -{{ formatMoney(data.monthlyDeficit) }} ₽
@@ -42,9 +48,10 @@
             -{{ formatMoney(data.debt) }} ₽
           </template>
           <template v-else>
-            {{ formatMoney(data.remainingGoal) }} ₽
+            {{ formatMoney(data.savedNow) }} ₽
           </template>
         </div>
+
         <div class="metric-label">
           <template v-if="data.hasDebtScenario">
             ежемесячный долг
@@ -52,9 +59,16 @@
           <template v-else-if="data.debt > 0">
             долг
           </template>
-          <template v-else>
-            из {{ formatMoney(data.initialGoal) }} ₽
+          <template v-else-if="data.initialGoal > 0">
+            из {{ formatMoney(data.initialGoal) }} ₽ · {{ data.goalProgressPercent }}%
           </template>
+          <template v-else>
+            цель не выбрана
+          </template>
+        </div>
+
+        <div v-if="showGoalProgress" class="metric-label goal-name">
+          {{ data.goalTitle }}
         </div>
       </div>
     </div>
@@ -70,10 +84,10 @@
         <div class="empty-icon">💸</div>
         <div class="empty-title">Пока нет трат</div>
       </div>
-      <div 
-        v-else 
-        class="transaction" 
-        v-for="t in todayTransactions" 
+      <div
+        v-else
+        class="transaction"
+        v-for="t in todayTransactions"
         :key="t.id"
       >
         <div class="transaction-left">
@@ -95,9 +109,9 @@
     <button class="btn-settings" @click="goToSettings">Изменить бюджет</button>
   </div>
 
-  <!-- Модалка добавления траты (вынесена в отдельный компонент) -->
-  <AddExpenseModal 
-    v-model="showAddModal" 
+  <!-- Модалка добавления траты -->
+  <AddExpenseModal
+    v-model="showAddModal"
     @transaction="handleTransaction"
   />
 </template>
@@ -115,7 +129,6 @@ const transactions = ref([])
 const showAddModal = ref(false)
 
 // === КОНСТАНТЫ ===
-// Пороговые значения для цветовой индикации лимита (в рублях)
 const LIMIT_WARNING_THRESHOLD = 1500
 const LIMIT_DANGER_THRESHOLD = 500
 const PROGRESS_WARNING_PERCENT = 50
@@ -150,17 +163,15 @@ function formatTime(dateStr) {
 }
 
 function getCategoryIcon(name) {
-  // Извлекаем эмодзи из начала названия категории
   const match = name.match(/^[\p{Emoji}]/u)
   return match ? match[0] : '💳'
 }
 
 function getTransactionName(name) {
-  // Возвращаем название без эмодзи
   return name.split(' ').slice(1).join(' ') || name
 }
 
-// === ЗАГРУЗКА/СОХРАНЕНИЕ ДАННЫХ ===
+// === ЗАГРУЗКА/СОХРАНЕНИЕ ===
 function loadSettings() {
   const saved = localStorage.getItem('daylimit-settings')
   if (!saved) {
@@ -168,14 +179,13 @@ function loadSettings() {
     return null
   }
   const data = JSON.parse(saved)
-  if (data.savingsUsed === undefined) data.savingsUsed = 0
-  if (data.debt === undefined) data.debt = 0
-  localStorage.setItem('daylimit-settings', JSON.stringify(data))
+  if (data.totalSavings === undefined) data.totalSavings = 0
+  if (data.totalDebt === undefined) data.totalDebt = 0
   return data
 }
 
-function saveSettings() {
-  localStorage.setItem('daylimit-settings', JSON.stringify(settings.value))
+function saveTransactions() {
+  localStorage.setItem(getMonthKey(), JSON.stringify(transactions.value))
 }
 
 function loadTransactions() {
@@ -183,27 +193,27 @@ function loadTransactions() {
   transactions.value = saved ? JSON.parse(saved) : []
 }
 
-function saveTransactions() {
-  localStorage.setItem(getMonthKey(), JSON.stringify(transactions.value))
-}
-
 // === ВЫЧИСЛЕНИЯ ===
+// Вся финансовая модель ВЫВОДИТСЯ из settings + трат, ничего не мутирует.
+// Каскад покрытия трат: свободные деньги -> накопления в цели -> долг.
 const data = computed(() => {
   if (!settings.value) {
-    return { 
-      fixedExpenses: 0, 
-      freeMoney: 0, 
-      availableMoney: 0, 
-      remainingGoal: 0, 
-      debt: 0, 
+    return {
+      fixedExpenses: 0,
+      freeMoney: 0,
+      availableMoney: 0,
+      debt: 0,
       monthlyDeficit: 0,
       dailyDebt: 0,
-      daysRemaining: 0, 
-      dailyLimit: 0, 
-      totalSpentMonth: 0, 
-      totalSpentToday: 0, 
+      daysRemaining: 0,
+      dailyLimit: 0,
+      totalSpentMonth: 0,
+      totalSpentToday: 0,
       remainingToday: 0,
       initialGoal: 0,
+      savedNow: 0,
+      goalProgressPercent: 0,
+      goalTitle: '',
       hasDebtScenario: false
     }
   }
@@ -221,81 +231,119 @@ const data = computed(() => {
 
   const fixedExpenses = rent + utilities + food + transport + credits + customExpensesTotal
   const income = Number(s.income) || 0
-  
-  // Новая логика: если расходы > доходов, то это ежемесячный дефицит (долг)
+
   const monthlyDeficit = fixedExpenses - income > 0 ? fixedExpenses - income : 0
   const freeMoney = income - fixedExpenses
   const hasDebtScenario = monthlyDeficit > 0
 
-  let savingsPercent = Number(s.savings) || 0
+  // === АВТОМАТИЧЕСКИЙ ПЕРЕСЧЁТ ДНЕЙ ДО ЗП ===
+  const lastPayday = s.lastPayday ? new Date(s.lastPayday) : new Date()
+  const payCycle = Number(s.payCycle) || 30
+  const today = new Date()
+
+  // Считаем дату следующей зарплаты
+  const nextPayday = new Date(lastPayday)
+  nextPayday.setDate(nextPayday.getDate() + payCycle)
+
+  // Если сегодня уже после следующей ЗП — сдвигаем на цикл вперёд
+  while (nextPayday < today) {
+    nextPayday.setDate(nextPayday.getDate() + payCycle)
+  }
+
+  // Дней до следующей ЗП (минимум 1)
+  const daysRemaining = Math.max(1, Math.ceil((nextPayday - today) / (1000 * 60 * 60 * 24)))
+
+  const savingsPercent = Number(s.savings) || 0
+
+  let monthlyContribution = 0
   let monthlyBudget = 0
   let dailyLimit = 0
   let dailyDebt = 0
 
   if (hasDebtScenario) {
-    // Сценарий с долгом: никаких целей, весь дефицит делится на дни
-    savingsPercent = 0
+    monthlyContribution = 0
     monthlyBudget = 0
     dailyDebt = monthlyDeficit / daysRemaining
     dailyLimit = 0
   } else {
-    // Обычный сценарий: есть свободные деньги
-    monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
-    const daysRemaining = Math.max(1, Number(s.daysToSalary) || 30)
+    monthlyContribution = freeMoney * (savingsPercent / 100)
+    monthlyBudget = freeMoney - monthlyContribution
+    // Дневной лимит = свободные деньги / дней до ЗП
     dailyLimit = monthlyBudget / daysRemaining
   }
-
-  const daysRemaining = Math.max(1, Number(s.daysToSalary) || 30)
 
   const totalSpentMonth = transactions.value.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
   const totalSpentToday = transactions.value
     .filter(t => isToday(t.date))
     .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
-  const savingsUsed = Number(s.savingsUsed) || 0
-  const debt = Number(s.debt) || 0
+  // === КАСКАД: свободные -> накопления -> долг ===
+  const initialGoal = Number(s.goalAmount) || 0
+  const totalSavings = Number(s.totalSavings) || 0
 
-  // Доступные деньги: в сценарии с долгом показываем дефицит, иначе бюджет + цель - траты
-  let availableMoney = 0
-  if (hasDebtScenario) {
-    availableMoney = monthlyDeficit
-  } else {
-    availableMoney = Math.max(0, monthlyBudget + savingsUsed - totalSpentMonth)
-  }
+  const goalBase = hasDebtScenario
+    ? 0
+    : (s.goal === 'debt' ? 0 : totalSavings) + monthlyContribution
+
+  const overspend = hasDebtScenario
+    ? totalSpentMonth
+    : Math.max(0, totalSpentMonth - monthlyBudget)
+
+  const goalSaved = Math.max(0, goalBase - overspend)
+  const debt = hasDebtScenario
+    ? totalSpentMonth
+    : Math.max(0, overspend - goalBase)
+
+  const availableMoney = hasDebtScenario
+    ? monthlyDeficit
+    : Math.max(0, monthlyBudget - totalSpentMonth)
+
   const remainingToday = dailyLimit - totalSpentToday
 
-  // Сколько реально осталось от изначальной цели
-  const initialGoal = Number(s.goalAmount) || 0
-  const remainingGoal = hasDebtScenario ? 0 : Math.max(0, initialGoal - savingsUsed)
+  const savedNow = goalSaved
+  const goalProgressPercent = initialGoal > 0
+    ? Math.min(100, Math.round((savedNow / initialGoal) * 100))
+    : 0
+
+  const goalTitles = {
+    safety: 'Подушка безопасности',
+    car: 'Машина',
+    vacation: 'Отпуск',
+    debt: 'Закрыть долги',
+    custom: s.customGoalName || 'Моя цель'
+  }
+  const goalTitle = goalTitles[s.goal] || 'Цель'
 
   return {
-    fixedExpenses, 
-    freeMoney, 
-    availableMoney, 
-    remainingGoal,
-    debt, 
+    fixedExpenses,
+    freeMoney,
+    availableMoney,
+    debt,
     monthlyDeficit,
     dailyDebt,
     hasDebtScenario,
-    daysRemaining, 
+    daysRemaining,
     dailyLimit,
-    totalSpentMonth, 
-    totalSpentToday, 
+    totalSpentMonth,
+    totalSpentToday,
     remainingToday,
-    initialGoal
+    initialGoal,
+    savedNow,
+    goalProgressPercent,
+    goalTitle
   }
 })
 
+const showGoalProgress = computed(() =>
+  !data.value.hasDebtScenario && data.value.debt <= 0 && data.value.initialGoal > 0
+)
+
 const displayLimit = computed(() => {
-  // В сценарии с долгом показываем dailyDebt, иначе remainingToday
-  if (data.value.hasDebtScenario) {
-    return data.value.dailyDebt
-  }
+  if (data.value.hasDebtScenario) return data.value.dailyDebt
   return Math.max(0, data.value.remainingToday)
 })
 
 const limitCardClass = computed(() => {
-  // В сценарии с долгом всегда показываем красный/тревожный стиль
   if (data.value.hasDebtScenario) return 'debt-scenario'
   const remainingToday = data.value.remainingToday
   if (remainingToday < 0) return 'overspent'
@@ -307,7 +355,6 @@ const limitCardClass = computed(() => {
 const progressPercent = computed(() => {
   const dailyLimit = data.value.dailyLimit
   const totalSpentToday = data.value.totalSpentToday
-  // В сценарии с долгом прогресс показывает отношение потраченного к ежедневному долгу
   if (data.value.hasDebtScenario && data.value.dailyDebt > 0) {
     return Math.min((totalSpentToday / data.value.dailyDebt) * 100, 100)
   }
@@ -317,7 +364,6 @@ const progressPercent = computed(() => {
 const progressFillClass = computed(() => {
   const remainingToday = data.value.remainingToday
   const progress = progressPercent.value
-  // В сценарии с долгом всегда показываем danger
   if (data.value.hasDebtScenario) return 'danger'
   if (remainingToday < 0 || progress > PROGRESS_DANGER_PERCENT) return 'danger'
   if (progress > PROGRESS_WARNING_PERCENT) return 'warning'
@@ -326,44 +372,9 @@ const progressFillClass = computed(() => {
 
 const todayTransactions = computed(() => transactions.value.filter(t => isToday(t.date)))
 
-// === ЛОГИКА ТРАТ ===
+// === ТРАТЫ ===
+// Никаких мутаций settings: добавили транзакцию — модель пересчиталась сама.
 function handleTransaction(transaction) {
-  executeTransactionLogic(transaction)
-}
-
-function executeTransactionLogic(transaction) {
-  const s = settings.value
-  
-  // В сценарии с долгом: любая трата увеличивает долг
-  if (data.value.hasDebtScenario) {
-    s.debt = (Number(s.debt) || 0) + Number(transaction.amount)
-    transactions.value.unshift(transaction)
-    saveSettings()
-    saveTransactions()
-    return
-  }
-  
-  const wouldRemain = data.value.availableMoney - transaction.amount
-
-  if (wouldRemain < 0) {
-    // Перерасход! Автоматически покрываем из цели, потом из долга.
-    const overspend = Math.abs(wouldRemain)
-    const currentGoal = Number(s.goalAmount) || 0
-    const currentSavingsUsed = Number(s.savingsUsed) || 0
-    const availableInGoal = Math.max(0, currentGoal - currentSavingsUsed)
-
-    if (availableInGoal >= overspend) {
-      // Цели хватает, чтобы покрыть перерасход
-      s.savingsUsed = currentSavingsUsed + overspend
-    } else {
-      // Цель кончилась, остаток уходит в долг
-      s.savingsUsed = currentSavingsUsed + availableInGoal
-      s.debt = (Number(s.debt) || 0) + (overspend - availableInGoal)
-    }
-    saveSettings()
-  }
-
-  // Добавляем транзакцию в любом случае
   transactions.value.unshift(transaction)
   saveTransactions()
 }
@@ -371,82 +382,23 @@ function executeTransactionLogic(transaction) {
 function deleteTransaction(id) {
   const index = transactions.value.findIndex(t => t.id === id)
   if (index === -1) return
-
-  // Удаляем транзакцию
   transactions.value.splice(index, 1)
-  
-  // Пересчитываем savingsUsed и debt с нуля на основе оставшихся транзакций
-  recalculateFinancialState()
-  
   saveTransactions()
 }
 
 function clearTodayExpenses() {
   const today = transactions.value.filter(t => isToday(t.date))
   if (today.length === 0) return
-  
+
   const totalAmountToday = today.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
-  
+
   if (confirm(`Очистить все траты за сегодня? Будет удалено ${today.length} транзакций на сумму ${formatMoney(totalAmountToday)} ₽`)) {
-    // Удаляем все сегодняшние транзакции
     today.forEach(t => {
       const idx = transactions.value.findIndex(tr => tr.id === t.id)
-      if (idx !== -1) {
-        transactions.value.splice(idx, 1)
-      }
+      if (idx !== -1) transactions.value.splice(idx, 1)
     })
-    
-    // Пересчитываем состояние
-    recalculateFinancialState()
     saveTransactions()
   }
-}
-
-/**
- * Пересчитывает savingsUsed и debt с нуля на основе текущих транзакций
- * Это исправляет баг с некорректным возвратом средств при удалении транзакций
- */
-function recalculateFinancialState() {
-  const s = settings.value
-  const income = Number(s.income) || 0
-  const fixedExpenses = (Number(s.rent) || 0) + (Number(s.utilities) || 0) + (Number(s.food) || 0) + 
-                        (Number(s.transport) || 0) + (Number(s.credits) || 0) + 
-                        (Array.isArray(s.customExpenses) ? s.customExpenses.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0) : 0)
-  const monthlyDeficit = fixedExpenses - income > 0 ? fixedExpenses - income : 0
-  const freeMoney = income - fixedExpenses
-  const hasDebtScenario = monthlyDeficit > 0
-  
-  let savingsPercent = Number(s.savings) || 0
-  let monthlyBudget = 0
-  
-  if (hasDebtScenario) {
-    // Сценарий с долгом: целей нет
-    savingsPercent = 0
-    monthlyBudget = 0
-  } else {
-    // Обычный сценарий
-    monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
-  }
-  
-  // Считаем общие траты за месяц после удаления
-  const newTotalSpentMonth = transactions.value.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
-  
-  // Логика восстановления: пересчитываем с нуля
-  if (hasDebtScenario) {
-    // В сценарии с долгом всё идет в покрытие дефицита
-    s.debt = newTotalSpentMonth
-    s.savingsUsed = 0
-  } else if (newTotalSpentMonth <= monthlyBudget) {
-    // Перерасхода нет — сбрасываем всё
-    s.debt = 0
-    s.savingsUsed = 0
-  } else {
-    // Есть перерасход — всё ушло в долг
-    s.debt = newTotalSpentMonth - monthlyBudget
-    s.savingsUsed = Number(s.goalAmount) || 0
-  }
-  
-  saveSettings()
 }
 
 function goToSettings() {
@@ -462,7 +414,6 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* Стили остаются без изменений */
 .container {
   max-width: 480px;
   margin: 0 auto;
@@ -586,6 +537,32 @@ onMounted(() => {
   font-size: 11px;
   color: #6b7280;
   line-height: 1.3;
+}
+
+.goal-metric {
+  position: relative;
+  overflow: hidden;
+}
+
+.goal-progress-wrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: #e5e7eb;
+}
+
+.goal-progress-fill {
+  height: 100%;
+  background: #10b981;
+  transition: width 0.4s ease;
+}
+
+.goal-name {
+  margin-top: 4px;
+  font-weight: 600;
+  opacity: 0.9;
 }
 
 .section-header {
