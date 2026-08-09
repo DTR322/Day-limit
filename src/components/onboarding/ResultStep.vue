@@ -5,10 +5,17 @@
       <h2>Сегодня можно<br>потратить</h2>
     </div>
     
-    <div class="result-section">
-      <div class="hero-number">{{ formatMoney(dailyLimit) }}</div>
-      <div class="hero-currency">рублей</div>
-      <p class="result-hint">
+    <div class="result-section" :class="{ 'is-deficit': monthlyDeficit > 0 }">
+      <div v-if="monthlyDeficit > 0" class="deficit-hero-icon">⚠️</div>
+      <div class="hero-number" :class="{ 'is-negative': monthlyDeficit > 0 }">
+        {{ formatMoney(monthlyDeficit > 0 ? dailyLimit : dailyLimit) }}
+      </div>
+      <div class="hero-currency">{{ monthlyDeficit > 0 ? 'рублей нужно откладывать в день' : 'рублей' }}</div>
+      <p v-if="monthlyDeficit > 0" class="result-debt-hint">
+        При ежемесячном дефиците {{ formatMoney(monthlyDeficit) }} ₽<br>
+        Нужно откладывать {{ formatMoney(dailyLimit) }} ₽ ежедневно
+      </p>
+      <p v-else class="result-hint">
         При доходе {{ formatMoney(income) }} ₽ и цели {{ selectedGoal ? formatMoney(goalAmount) + ' ₽' : 'нет' }}
       </p>
     </div>
@@ -37,12 +44,27 @@ const totalExpenses = computed(() => {
   const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   return base + custom
 })
-const freeMoney = computed(() => Math.max(0, income.value - totalExpenses.value))
+const freeMoney = computed(() => {
+  const income = Number(props.modelValue.income) || 0
+  const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0)
+  const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+  return income - totalExpenses - custom
+})
+const monthlyDeficit = computed(() => {
+  const diff = totalExpenses.value - income.value
+  return diff > 0 ? diff : 0
+})
 const goalMonthly = computed(() => {
+  // Если есть дефицит, цели не применяются
+  if (freeMoney.value < 0) return 0
   if (!props.modelValue.selectedGoal) return 0
   return freeMoney.value * (props.modelValue.savingsPercent / 100)
 })
 const dailyLimit = computed(() => {
+  // Если расходы превышают доходы - показываем ежедневный долг
+  if (freeMoney.value < 0) {
+    return Math.ceil(Math.abs(freeMoney.value) / DEFAULT_DAYS_TO_SALARY)
+  }
   const remainingAfterGoal = freeMoney.value - goalMonthly.value
   return Math.max(0, Math.floor(remainingAfterGoal / DEFAULT_DAYS_TO_SALARY))
 })
