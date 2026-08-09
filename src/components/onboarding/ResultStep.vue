@@ -44,12 +44,7 @@ const totalExpenses = computed(() => {
   const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   return base + custom
 })
-const freeMoney = computed(() => {
-  const income = Number(props.modelValue.income) || 0
-  const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0)
-  const custom = props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
-  return income - totalExpenses - custom
-})
+const freeMoney = computed(() => income.value - totalExpenses.value)
 const monthlyDeficit = computed(() => {
   const diff = totalExpenses.value - income.value
   return diff > 0 ? diff : 0

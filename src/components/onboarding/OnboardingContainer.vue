@@ -78,7 +78,8 @@ const onboardingData = ref({
   customExpenses: [],
   selectedGoal: null,
   goalAmount: 0,
-  savingsPercent: 0
+  savingsPercent: 0,
+  customGoalName: ''
 })
 
 const currentStepComponent = computed(() => STEP_COMPONENTS[currentStep.value])
