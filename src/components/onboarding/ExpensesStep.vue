@@ -180,9 +180,33 @@ h2 {
 }
 
 .expense-input input {
-  padding: 12px 40px 12px 12px;
+  width: 100%;
+  padding: 12px 35px 12px 12px;
   font-size: 18px;
   text-align: right;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  outline: none;
+  transition: border-color 0.2s;
+  box-sizing: border-box;
+}
+
+.expense-input input:focus {
+  border-color: rgba(255, 255, 255, 0.5);
+}
+
+.currency-sm {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.7;
+  pointer-events: none;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 .custom-name {
@@ -262,17 +286,6 @@ input[type="text"]:focus {
 
 input::placeholder {
   color: rgba(255, 255, 255, 0.4);
-}
-
-.currency-sm {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 16px;
-  font-weight: 600;
-  opacity: 0.7;
-  pointer-events: none;
 }
 
 /* Remove default browser arrows from number inputs */

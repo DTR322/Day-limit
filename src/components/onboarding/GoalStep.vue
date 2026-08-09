@@ -2,32 +2,69 @@
   <div class="onboarding-step">
     <div class="step-header">
       <span class="step-label">Шаг 4 из 5</span>
-      <h2>Копишь на что-то?</h2>
+      <h2>Какая у тебя цель?</h2>
     </div>
 
     <div class="goals-list">
-      <button
-        v-for="g in PRESET_GOALS"
-        :key="g.id"
-        class="goal-btn"
-        :class="{ selected: modelValue.selectedGoal === g.id }"
-        @click="selectGoal(g.id)"
+      <!-- Цель: Накопления -->
+      <div 
+        class="goal-option" 
+        :class="{ active: modelValue.selectedGoal === 'savings' }"
+        @click="selectGoal('savings')"
       >
-        <span class="goal-icon">{{ g.icon }}</span>
-        <span class="goal-name">{{ g.name }}</span>
-        <span v-if="g.recommended" class="badge">Рекомендуем</span>
-      </button>
+        <div class="goal-icon">💰</div>
+        <div class="goal-info">
+          <span class="goal-name">Накопления</span>
+          <span class="goal-desc">Откладывать на мечту</span>
+        </div>
+      </div>
+
+      <!-- Цель: Закрыть долги -->
+      <div 
+        class="goal-option" 
+        :class="{ active: modelValue.selectedGoal === 'debt' }"
+        @click="selectGoal('debt')"
+      >
+        <div class="goal-icon">📉</div>
+        <div class="goal-info">
+          <span class="goal-name">Закрыть долги</span>
+          <span class="goal-desc">Досрочное погашение кредитов</span>
+        </div>
+      </div>
+
+      <!-- Кастомная цель -->
+      <div 
+        class="goal-option custom" 
+        :class="{ active: modelValue.selectedGoal === 'custom' }"
+        @click="selectGoal('custom')"
+      >
+        <div class="goal-icon">✨</div>
+        <div class="goal-info" v-if="modelValue.selectedGoal !== 'custom'">
+          <span class="goal-name">Своя цель</span>
+          <span class="goal-desc">Например: ремонт, путешествие</span>
+        </div>
+        <div class="goal-input-wrapper" v-else>
+          <input
+            type="text"
+            v-model="customGoalName"
+            @input="updateCustomName"
+            placeholder="Название вашей цели"
+            class="custom-goal-input"
+            autofocus
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Сумма цели (редактируемая) -->
     <div v-if="modelValue.selectedGoal" class="goal-amount-wrapper">
-      <label>Сумма цели</label>
+      <label>Целевая сумма:</label>
       <div class="input-wrapper small">
         <input
           type="number"
           :value="modelValue.goalAmount"
           @input="emitUpdate('goalAmount', $event.target.value)"
-          placeholder="0"
+          placeholder="100000"
           inputmode="numeric"
         />
         <span class="currency">₽</span>
@@ -67,7 +104,7 @@
 </template>
 
 <script setup>
-import { computed, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -78,11 +115,14 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const PRESET_GOALS = [
-  { id: 'safety', name: 'Подушка безопасности', icon: '🛡️', recommended: true, defaultAmount: null },
-  { id: 'car', name: 'Машина', icon: '🚗', recommended: false, defaultAmount: 1500000 },
-  { id: 'vacation', name: 'Отпуск', icon: '✈️', recommended: false, defaultAmount: 100000 }
-]
+const customGoalName = ref('')
+
+// Синхронизация имени кастомной цели при переключении
+watch(() => props.modelValue.selectedGoal, (newGoal) => {
+  if (newGoal === 'custom' && !customGoalName.value) {
+    customGoalName.value = props.modelValue.customGoalName || ''
+  }
+}, { immediate: true })
 
 const DEFAULT_DAYS_TO_SALARY = 30
 
@@ -96,24 +136,40 @@ function emitUpdate(field, value) {
 }
 
 function selectGoal(goalId) {
-  const goal = PRESET_GOALS.find(g => g.id === goalId)
   let newGoalAmount = 0
   
-  if (goal.defaultAmount !== null) {
-    newGoalAmount = goal.defaultAmount
-  } else {
+  if (goalId === 'debt') {
+    // Для долгов считаем сумму всех кредитов
+    const creditsExpense = Number(props.modelValue.expenses.credits) || 0
+    const customDebts = props.modelValue.customExpenses
+      .filter(item => item.name.toLowerCase().includes('долг') || item.name.toLowerCase().includes('кредит'))
+      .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+    newGoalAmount = (creditsExpense * 12) + customDebts // Год платежей + доп долги
+  } else if (goalId === 'savings') {
     // Подушка безопасности = 3 обязательных расхода
     const totalExpenses = Object.values(props.modelValue.expenses).reduce((sum, val) => sum + (Number(val) || 0), 0) +
                           props.modelValue.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
     newGoalAmount = totalExpenses * 3
+  } else if (goalId === 'custom') {
+    newGoalAmount = props.modelValue.goalAmount || 100000
   }
   
   emit('update:modelValue', {
     ...props.modelValue,
     selectedGoal: goalId,
     goalAmount: newGoalAmount,
-    savingsPercent: 20
+    savingsPercent: 20,
+    customGoalName: goalId === 'custom' ? (customGoalName.value || 'Моя цель') : ''
   })
+}
+
+function updateCustomName() {
+  if (props.modelValue.selectedGoal === 'custom') {
+    emit('update:modelValue', {
+      ...props.modelValue,
+      customGoalName: customGoalName.value || 'Моя цель'
+    })
+  }
 }
 
 function skipGoal() {
@@ -121,7 +177,8 @@ function skipGoal() {
     ...props.modelValue,
     selectedGoal: null,
     goalAmount: 0,
-    savingsPercent: 0
+    savingsPercent: 0,
+    customGoalName: ''
   })
 }
 
@@ -157,7 +214,7 @@ const dailyLimit = computed(() => {
   return Math.max(0, Math.floor(remainingAfterGoal / DEFAULT_DAYS_TO_SALARY))
 })
 
-// Автопересчёт подушки безопасности при изменении расходов
+// Автопересчёт суммы цели при изменении расходов
 watch(
   () => ({
     expenses: props.modelValue.expenses,
@@ -171,14 +228,19 @@ watch(
         ...props.modelValue,
         goalAmount: totalExpenses * 3
       })
+    } else if (props.modelValue.selectedGoal === 'debt') {
+      const creditsExpense = Number(newVal.expenses.credits) || 0
+      const customDebts = newVal.customExpenses
+        .filter(item => item.name.toLowerCase().includes('долг') || item.name.toLowerCase().includes('кредит'))
+        .reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
+      emit('update:modelValue', {
+        ...props.modelValue,
+        goalAmount: (creditsExpense * 12) + customDebts
+      })
     }
   },
   { deep: true }
 )
-</script>
-
-<script>
-import { computed, watch } from 'vue'
 </script>
 
 <style scoped>
@@ -220,7 +282,7 @@ h2 {
   margin-bottom: 20px;
 }
 
-.goal-btn {
+.goal-option {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -230,32 +292,64 @@ h2 {
   border-radius: 12px;
   color: white;
   font-size: 16px;
-  font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
 }
 
-.goal-btn.selected {
+.goal-option.active {
   background: rgba(255, 255, 255, 0.2);
   border-color: white;
+}
+
+.goal-option.custom {
+  flex-direction: column;
+  align-items: stretch;
 }
 
 .goal-icon {
   font-size: 24px;
 }
 
-.goal-name {
+.goal-info {
   flex: 1;
+  display: flex;
+  flex-direction: column;
 }
 
-.badge {
-  padding: 4px 8px;
-  background: #10b981;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
+.goal-name {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.goal-desc {
+  font-size: 13px;
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+.goal-input-wrapper {
+  margin-top: 12px;
+  width: 100%;
+}
+
+.custom-goal-input {
+  width: 100%;
+  padding: 12px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 8px;
+  color: white;
+  outline: none;
+}
+
+.custom-goal-input:focus {
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.custom-goal-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .goal-amount-wrapper {
@@ -278,7 +372,7 @@ h2 {
 
 input[type="number"] {
   width: 100%;
-  padding: 16px;
+  padding: 16px 40px 16px 16px;
   font-size: 24px;
   font-weight: 700;
   text-align: center;
@@ -288,6 +382,7 @@ input[type="number"] {
   color: white;
   outline: none;
   transition: border-color 0.2s;
+  box-sizing: border-box;
 }
 
 input[type="number"]:focus {
