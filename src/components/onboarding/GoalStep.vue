@@ -106,7 +106,7 @@
       <div class="debt-warning-icon">⚠️</div>
       <div class="debt-warning-title">Расходы превышают доход</div>
       <div class="debt-warning-text">
-        Ежемесячный дефицит: <strong>{{ formatMoney(Math.abs(freeMoney)) }} ₽</strong><br>
+        Ежемесячный долг: <strong>{{ formatMoney(Math.abs(freeMoney)) }} ₽</strong><br>
         Нужно откладывать {{ formatMoney(dailyLimit) }} ₽ в день, чтобы покрыть долг
       </div>
     </div>

@@ -223,8 +223,8 @@ const data = computed(() => {
   const income = Number(s.income) || 0
   
   // Новая логика: если расходы > доходов, то это ежемесячный дефицит (долг)
-  const monthlyDeficit = Math.max(0, fixedExpenses - income)
-  const freeMoney = Math.max(0, income - fixedExpenses)
+  const monthlyDeficit = fixedExpenses - income > 0 ? fixedExpenses - income : 0
+  const freeMoney = income - fixedExpenses
   const hasDebtScenario = monthlyDeficit > 0
 
   let savingsPercent = Number(s.savings) || 0
@@ -255,13 +255,18 @@ const data = computed(() => {
   const savingsUsed = Number(s.savingsUsed) || 0
   const debt = Number(s.debt) || 0
 
-  // Доступные деньги = бюджет + то, что мы уже вытащили из цели - потраченное
-  const availableMoney = Math.max(0, monthlyBudget + savingsUsed - totalSpentMonth)
+  // Доступные деньги: в сценарии с долгом показываем дефицит, иначе бюджет + цель - траты
+  let availableMoney = 0
+  if (hasDebtScenario) {
+    availableMoney = monthlyDeficit
+  } else {
+    availableMoney = Math.max(0, monthlyBudget + savingsUsed - totalSpentMonth)
+  }
   const remainingToday = dailyLimit - totalSpentToday
 
   // Сколько реально осталось от изначальной цели
   const initialGoal = Number(s.goalAmount) || 0
-  const remainingGoal = Math.max(0, initialGoal - savingsUsed)
+  const remainingGoal = hasDebtScenario ? 0 : Math.max(0, initialGoal - savingsUsed)
 
   return {
     fixedExpenses, 
@@ -327,12 +332,22 @@ function handleTransaction(transaction) {
 }
 
 function executeTransactionLogic(transaction) {
+  const s = settings.value
+  
+  // В сценарии с долгом: любая трата увеличивает долг
+  if (data.value.hasDebtScenario) {
+    s.debt = (Number(s.debt) || 0) + Number(transaction.amount)
+    transactions.value.unshift(transaction)
+    saveSettings()
+    saveTransactions()
+    return
+  }
+  
   const wouldRemain = data.value.availableMoney - transaction.amount
 
   if (wouldRemain < 0) {
     // Перерасход! Автоматически покрываем из цели, потом из долга.
     const overspend = Math.abs(wouldRemain)
-    const s = settings.value
     const currentGoal = Number(s.goalAmount) || 0
     const currentSavingsUsed = Number(s.savingsUsed) || 0
     const availableInGoal = Math.max(0, currentGoal - currentSavingsUsed)
@@ -397,15 +412,31 @@ function recalculateFinancialState() {
   const fixedExpenses = (Number(s.rent) || 0) + (Number(s.utilities) || 0) + (Number(s.food) || 0) + 
                         (Number(s.transport) || 0) + (Number(s.credits) || 0) + 
                         (Array.isArray(s.customExpenses) ? s.customExpenses.reduce((sum, item) => sum + (Number(item?.amount) || 0), 0) : 0)
-  const freeMoney = Math.max(0, income - fixedExpenses)
-  const savingsPercent = Number(s.savings) || 0
-  const monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+  const monthlyDeficit = fixedExpenses - income > 0 ? fixedExpenses - income : 0
+  const freeMoney = income - fixedExpenses
+  const hasDebtScenario = monthlyDeficit > 0
+  
+  let savingsPercent = Number(s.savings) || 0
+  let monthlyBudget = 0
+  
+  if (hasDebtScenario) {
+    // Сценарий с долгом: целей нет
+    savingsPercent = 0
+    monthlyBudget = 0
+  } else {
+    // Обычный сценарий
+    monthlyBudget = freeMoney - (freeMoney * (savingsPercent / 100))
+  }
   
   // Считаем общие траты за месяц после удаления
   const newTotalSpentMonth = transactions.value.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
   
   // Логика восстановления: пересчитываем с нуля
-  if (newTotalSpentMonth <= monthlyBudget) {
+  if (hasDebtScenario) {
+    // В сценарии с долгом всё идет в покрытие дефицита
+    s.debt = newTotalSpentMonth
+    s.savingsUsed = 0
+  } else if (newTotalSpentMonth <= monthlyBudget) {
     // Перерасхода нет — сбрасываем всё
     s.debt = 0
     s.savingsUsed = 0

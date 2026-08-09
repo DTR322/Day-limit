@@ -8,7 +8,7 @@
     <div class="result-section" :class="{ 'is-deficit': monthlyDeficit > 0 }">
       <div v-if="monthlyDeficit > 0" class="deficit-hero-icon">⚠️</div>
       <div class="hero-number" :class="{ 'is-negative': monthlyDeficit > 0 }">
-        {{ formatMoney(monthlyDeficit > 0 ? dailyLimit : dailyLimit) }}
+        {{ formatMoney(dailyLimit) }}
       </div>
       <div class="hero-currency">{{ monthlyDeficit > 0 ? 'рублей нужно откладывать в день' : 'рублей' }}</div>
       <p v-if="monthlyDeficit > 0" class="result-debt-hint">
