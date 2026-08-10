@@ -106,6 +106,27 @@
 
     <!-- Кнопки -->
     <button class="btn-add" @click="showAddModal = true">+ Добавить трату</button>
+    
+    <!-- Кнопки редактирования параметров -->
+    <div class="edit-buttons-grid">
+      <button class="btn-edit" @click="showIncomeEditor = true">
+        <span class="btn-edit-icon">💰</span>
+        <span class="btn-edit-text">Доходы</span>
+      </button>
+      <button class="btn-edit" @click="showExpensesEditor = true">
+        <span class="btn-edit-icon">📊</span>
+        <span class="btn-edit-text">Расходы</span>
+      </button>
+      <button class="btn-edit" @click="showGoalEditor = true">
+        <span class="btn-edit-icon">🎯</span>
+        <span class="btn-edit-text">Цель</span>
+      </button>
+      <button class="btn-edit" @click="showBalanceEditor = true">
+        <span class="btn-edit-icon">⚖️</span>
+        <span class="btn-edit-text">Долги/Накопления</span>
+      </button>
+    </div>
+    
     <button class="btn-settings" @click="goToSalarySettings">Настройки зарплаты</button>
   </div>
 
@@ -114,6 +135,45 @@
     v-model="showAddModal"
     @transaction="handleTransaction"
   />
+
+  <!-- Редакторы параметров -->
+  <IncomeEditor
+    v-if="showIncomeEditor"
+    :income="settings?.income || 0"
+    @close="showIncomeEditor = false"
+    @save="handleIncomeSave"
+  />
+
+  <ExpensesEditor
+    v-if="showExpensesEditor"
+    :expenses="settingsExpenses"
+    :customExpenses="settings?.customExpenses || []"
+    :income="settings?.income || 0"
+    @close="showExpensesEditor = false"
+    @save="handleExpensesSave"
+  />
+
+  <GoalEditor
+    v-if="showGoalEditor"
+    :goal="settings?.goal || ''"
+    :goalAmount="settings?.goalAmount || 0"
+    :savingsPercent="settings?.savings || 0"
+    :customGoalName="settings?.customGoalName || ''"
+    :income="settings?.income || 0"
+    :expenses="settingsExpenses"
+    :customExpenses="settings?.customExpenses || []"
+    @close="showGoalEditor = false"
+    @save="handleGoalSave"
+  />
+
+  <BalanceEditor
+    v-if="showBalanceEditor"
+    :totalDebt="settings?.totalDebt || 0"
+    :totalSavings="settings?.totalSavings || 0"
+    @close="showBalanceEditor = false"
+    @save="handleBalanceSave"
+  />
+
   <InstallPrompt />
 </template>
 
@@ -121,6 +181,10 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import AddExpenseModal from '../components/modals/AddExpenseModal.vue'
+import IncomeEditor from "../components/editors/IncomeEditor.vue"
+import ExpensesEditor from "../components/editors/ExpensesEditor.vue"
+import GoalEditor from "../components/editors/GoalEditor.vue"
+import BalanceEditor from "../components/editors/BalanceEditor.vue"
 import InstallPrompt from '../components/InstallPrompt.vue'
 
 const router = useRouter()
