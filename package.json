@@ -9,6 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "lightningcss-linux-x64-gnu": "^1.33.0",
     "vue": "^3.5.40",
     "vue-router": "^4.6.4"
   },

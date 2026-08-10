@@ -106,7 +106,7 @@
 
     <!-- Кнопки -->
     <button class="btn-add" @click="showAddModal = true">+ Добавить трату</button>
-    <button class="btn-settings" @click="goToSettings">Изменить бюджет</button>
+    <button class="btn-settings" @click="goToSalarySettings">Настройки зарплаты</button>
   </div>
 
   <!-- Модалка добавления траты -->
@@ -240,21 +240,63 @@ const data = computed(() => {
   const hasDebtScenario = monthlyDeficit > 0
 
   // === АВТОМАТИЧЕСКИЙ ПЕРЕСЧЁТ ДНЕЙ ДО ЗП ===
-  const lastPayday = s.lastPayday ? new Date(s.lastPayday) : new Date()
-  const payCycle = Number(s.payCycle) || 30
   const today = new Date()
-
-  // Считаем дату следующей зарплаты
-  const nextPayday = new Date(lastPayday)
-  nextPayday.setDate(nextPayday.getDate() + payCycle)
-
-  // Если сегодня уже после следующей ЗП — сдвигаем на цикл вперёд
-  while (nextPayday < today) {
+  today.setHours(0, 0, 0, 0)
+  
+  let daysRemaining = 30
+  let nextPaydayDate = null
+  
+  // Проверяем режим выплаты
+  const payFrequency = s.payFrequency || 'once'
+  
+  if (payFrequency === 'twice' && (s.advanceDate || s.salaryDateTwice)) {
+    // Режим 2 раза в месяц - находим ближайшую зарплату
+    const dates = []
+    
+    if (s.advanceDate) {
+      const adv = new Date(s.advanceDate)
+      const nextAdv = new Date(adv)
+      nextAdv.setDate(nextAdv.getDate() + 30)
+      while (nextAdv < today) {
+        nextAdv.setDate(nextAdv.getDate() + 30)
+      }
+      dates.push(nextAdv)
+    }
+    
+    if (s.salaryDateTwice) {
+      const sal = new Date(s.salaryDateTwice)
+      const nextSal = new Date(sal)
+      nextSal.setDate(nextSal.getDate() + 30)
+      while (nextSal < today) {
+        nextSal.setDate(nextSal.getDate() + 30)
+      }
+      dates.push(nextSal)
+    }
+    
+    if (dates.length > 0) {
+      // Находим ближайшую дату
+      let minDate = dates[0]
+      for (const d of dates) {
+        if (d < minDate) minDate = d
+      }
+      nextPaydayDate = minDate
+      daysRemaining = Math.max(1, Math.ceil((minDate - today) / (1000 * 60 * 60 * 24)))
+    }
+  } else {
+    // Режим 1 раз в месяц (или старый формат)
+    const lastPayday = s.lastPayday ? new Date(s.lastPayday) : new Date()
+    const payCycle = Number(s.payCycle) || 30
+    
+    const nextPayday = new Date(lastPayday)
     nextPayday.setDate(nextPayday.getDate() + payCycle)
+    
+    while (nextPayday < today) {
+      nextPayday.setDate(nextPayday.getDate() + payCycle)
+    }
+    
+    nextPaydayDate = nextPayday
+    daysRemaining = Math.max(1, Math.ceil((nextPayday - today) / (1000 * 60 * 60 * 24)))
   }
-
-  // Дней до следующей ЗП (минимум 1)
-  const daysRemaining = Math.max(1, Math.ceil((nextPayday - today) / (1000 * 60 * 60 * 24)))
 
   const savingsPercent = Number(s.savings) || 0
 
@@ -408,8 +450,8 @@ function clearTodayExpenses() {
   }
 }
 
-function goToSettings() {
-  router.push('/settings')
+function goToSalarySettings() {
+  router.push('/salary-settings')
 }
 
 onMounted(() => {
