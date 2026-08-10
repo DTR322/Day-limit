@@ -194,6 +194,49 @@ const settings = ref(null)
 const transactions = ref([])
 const showAddModal = ref(false)
 
+// === СОСТОЯНИЕ ДЛЯ РЕДАКТОРОВ ===
+const showIncomeEditor = ref(false)
+const showExpensesEditor = ref(false)
+const showGoalEditor = ref(false)
+const showBalanceEditor = ref(false)
+
+// === ВЫЧИСЛЯЕМОЕ СВОЙСТВО ДЛЯ РАСХОДОВ ===
+const settingsExpenses = computed(() => settings.value?.expenses || {})
+
+// === ОБРАБОТЧИКИ СОХРАНЕНИЯ ===
+function handleIncomeSave(newIncome) {
+  if (!settings.value) return
+  settings.value.income = newIncome
+  localStorage.setItem('daylimit-settings', JSON.stringify(settings.value))
+  showIncomeEditor.value = false
+}
+
+function handleExpensesSave(data) {
+  if (!settings.value) return
+  settings.value.expenses = data.expenses
+  settings.value.customExpenses = data.customExpenses || []
+  localStorage.setItem('daylimit-settings', JSON.stringify(settings.value))
+  showExpensesEditor.value = false
+}
+
+function handleGoalSave(data) {
+  if (!settings.value) return
+  settings.value.goal = data.goal
+  settings.value.goalAmount = data.goalAmount
+  settings.value.savings = data.savingsPercent
+  settings.value.customGoalName = data.customGoalName || ''
+  localStorage.setItem('daylimit-settings', JSON.stringify(settings.value))
+  showGoalEditor.value = false
+}
+
+function handleBalanceSave(data) {
+  if (!settings.value) return
+  settings.value.totalDebt = data.totalDebt
+  settings.value.totalSavings = data.totalSavings
+  localStorage.setItem('daylimit-settings', JSON.stringify(settings.value))
+  showBalanceEditor.value = false
+}
+
 // === КОНСТАНТЫ ===
 const LIMIT_WARNING_THRESHOLD = 1500
 const LIMIT_DANGER_THRESHOLD = 500
