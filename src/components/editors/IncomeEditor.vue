@@ -49,6 +49,11 @@ onMounted(() => {
   localIncome.value = props.income
 })
 
+// В секции <script setup>
+function formatMoney(amount) {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(Math.abs(amount || 0)))
+}
+
 function save() {
   emit('save', {
     income: localIncome.value || 0

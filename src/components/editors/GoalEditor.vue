@@ -146,6 +146,11 @@ const totalExpenses = computed(() => {
 
 const freeMoney = computed(() => (Number(props.income) || 0) - totalExpenses.value)
 
+// В секции <script setup>
+function formatMoney(amount) {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(Math.abs(amount || 0)))
+}
+
 const monthlyContribution = computed(() => {
   if (freeMoney.value < 0) return 0
   return freeMoney.value * (localSavingsPercent.value / 100)
