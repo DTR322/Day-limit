@@ -876,4 +876,41 @@ onMounted(() => {
 .btn-settings:hover {
   background: #e5e7eb;
 }
+
+/* Сетка кнопок редактирования */
+.edit-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.btn-edit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 14px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 15px;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.btn-edit:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.btn-edit:active {
+  transform: scale(0.97);
+}
+
+.btn-edit-icon {
+  font-size: 20px;
+}
 </style>
