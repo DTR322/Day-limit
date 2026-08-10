@@ -1,5 +1,7 @@
 ```
-# Build artifacts
-dist/
-build/
+# Dependencies
+node_modules/
+
+# Vite cache
+node_modules/.vite/
 ```
