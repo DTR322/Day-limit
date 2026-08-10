@@ -75,7 +75,7 @@
           <input
             type="text"
             :value="modelValue.customGoalName"
-            @input="emitUpdate('customGoalName', $event.target.value)"
+            @input="emitUpdateString('customGoalName', $event.target.value)"
             placeholder="Название цели"
             class="custom-goal-input"
             autofocus
@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import {computed, ref, watch} from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -159,6 +159,11 @@ function formatMoney(amount) {
 
 function emitUpdate(field, value) {
   emit('update:modelValue', { ...props.modelValue, [field]: Number(value) || 0 })
+}
+
+function emitUpdateString(field, value) {
+  const strValue = value != null ? String(value) : '';
+  emit('update:modelValue', { ...props.modelValue, [field]: strValue });
 }
 
 // Сумма всех обязательных расходов

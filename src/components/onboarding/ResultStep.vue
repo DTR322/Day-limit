@@ -67,10 +67,6 @@ const selectedGoal = computed(() => props.modelValue.selectedGoal)
 const goalAmount = computed(() => props.modelValue.goalAmount)
 </script>
 
-<script>
-import { computed } from 'vue'
-</script>
-
 <style scoped>
 .onboarding-step {
   display: flex;

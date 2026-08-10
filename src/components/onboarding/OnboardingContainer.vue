@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 
 import IncomeStep from './IncomeStep.vue'
@@ -51,7 +51,6 @@ import ResultStep from './ResultStep.vue'
 const router = useRouter()
 
 const TOTAL_STEPS = 5
-const DEFAULT_DAYS_TO_SALARY = 30
 
 // Компоненты для каждого шага
 const STEP_COMPONENTS = {
@@ -62,10 +61,7 @@ const STEP_COMPONENTS = {
   5: ResultStep
 }
 
-const currentStep = ref(1)
-const stepComponent = ref(null)
-
-// Единое состояние для всех шагов
+// === РЕАКТИВНЫЕ ДАННЫЕ ===
 const onboardingData = ref({
   income: 0,
   expenses: {
@@ -75,15 +71,47 @@ const onboardingData = ref({
     transport: 0,
     credits: 0
   },
-  totalDebt: 0,     // сколько всего должен
-  totalSavings: 0,   // сколько уже накопил
+  totalDebt: 0,
+  totalSavings: 0,
   customExpenses: [],
   selectedGoal: null,
   goalAmount: 0,
   savingsPercent: 0,
-  customGoalName: ''
+  customGoalName: "",
+  step: 1 // шаг теперь сохраняется
 })
 
+const currentStep = ref(onboardingData.value.step)
+const stepComponent = ref(null)
+
+// === СИНХРОНИЗАЦИЯ ШАГА ===
+watch(currentStep, (newStep) => {
+  onboardingData.value.step = newStep
+})
+
+// === АВТОСОХРАНЕНИЕ ВСЕХ ДАННЫХ ===
+watch(onboardingData, (newVal) => {
+  localStorage.setItem('onboardingData', JSON.stringify(newVal))
+}, { deep: true })
+
+// === ЗАГРУЗКА ПРИ МОНТИРОВАНИИ ===
+onMounted(() => {
+  const saved = localStorage.getItem('onboardingData')
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved)
+      onboardingData.value = { ...onboardingData.value, ...parsed }
+      // Восстанавливаем шаг
+      if (parsed.step) {
+        currentStep.value = parsed.step
+      }
+    } catch (e) {
+      console.warn('Ошибка загрузки данных:', e)
+    }
+  }
+})
+
+// === ВЫЧИСЛЯЕМЫЕ СВОЙСТВА ===
 const currentStepComponent = computed(() => STEP_COMPONENTS[currentStep.value])
 
 const canProceed = computed(() => {
@@ -93,6 +121,7 @@ const canProceed = computed(() => {
   return true
 })
 
+// === МЕТОДЫ НАВИГАЦИИ ===
 function next() {
   if (currentStep.value < TOTAL_STEPS) {
     currentStep.value++
@@ -105,6 +134,7 @@ function prev() {
   }
 }
 
+// === ЗАВЕРШЕНИЕ ОНБОРДИНГА ===
 function finish() {
   const today = new Date()
   const settings = {
@@ -114,15 +144,15 @@ function finish() {
     food: Number(onboardingData.value.expenses.food) || 0,
     transport: Number(onboardingData.value.expenses.transport) || 0,
     credits: Number(onboardingData.value.expenses.credits) || 0,
-    customExpenses: onboardingData.value.customExpenses,
+    customExpenses: onboardingData.value.customExpenses || [],
     savings: Number(onboardingData.value.savingsPercent) || 0,
     goal: onboardingData.value.selectedGoal,
     goalAmount: Number(onboardingData.value.goalAmount) || 0,
     totalSavings: Number(onboardingData.value.totalSavings) || 0,
     totalDebt: Number(onboardingData.value.totalDebt) || 0,
-    // Новые поля для автоматического пересчёта
-    lastPayday: today.toISOString().split('T')[0], // YYYY-MM-DD
-    payCycle: 30 // дней между зарплатами
+    customGoalName: onboardingData.value.customGoalName || '', // ВАЖНО: сохраняем название цели
+    lastPayday: today.toISOString().split('T')[0],
+    payCycle: 30
   }
 
   localStorage.setItem('daylimit-settings', JSON.stringify(settings))

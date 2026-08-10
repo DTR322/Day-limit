@@ -1,41 +1,48 @@
 <template>
   <div class="modal" v-show="modelValue">
-    <div class="modal-backdrop" @click="emit('update:modelValue', false)"></div>
+    <div class="modal-backdrop" @click="closeModal"></div>
     <div class="modal-content">
       <h3 class="modal-title">Новая трата</h3>
 
       <div class="categories">
         <button
-          v-for="cat in PRESET_CATEGORIES"
+          v-for="cat in categoriesWithLastAmount"
           :key="cat.name"
           class="cat-btn"
-          @click="handleCategoryClick(cat)"
+          :class="{ active: selectedCategory && selectedCategory.name === cat.name }"
+          @click="selectCategory(cat)"
         >
           <span class="cat-icon">{{ cat.icon }}</span>
-          <span class="cat-name">{{ cat.name }}</span>
-          <span class="cat-amount">{{ cat.amount }} ₽</span>
+          <div class="cat-info">
+            <span class="cat-name">{{ cat.name }}</span>
+            <span v-if="cat.lastAmount > 0" class="cat-last-amount">
+              {{ formatNumber(cat.lastAmount) }} ₽
+            </span>
+          </div>
         </button>
       </div>
 
       <div class="custom-amount">
-        <label>Своя сумма</label>
+        <label for="amount-input">Сумма</label>
         <div class="input-group">
           <input
+            id="amount-input"
             type="number"
             v-model.number="customAmount"
             placeholder="0"
             min="1"
             inputmode="numeric"
+            ref="amountInput"
           />
           <span class="suffix">₽</span>
         </div>
       </div>
 
       <div class="modal-buttons">
-        <button class="btn-secondary" @click="emit('update:modelValue', false)">Отмена</button>
+        <button class="btn-secondary" @click="closeModal">Отмена</button>
         <button
           class="btn-primary"
-          @click="handleCustomTransaction"
+          @click="addTransaction"
           :disabled="!customAmount || customAmount <= 0"
         >
           Добавить
@@ -46,7 +53,7 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue'
+import { ref, watch, nextTick, computed } from 'vue'
 
 const props = defineProps({
   modelValue: {
@@ -57,56 +64,120 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue', 'transaction'])
 
+// === КОНСТАНТЫ ===
 const PRESET_CATEGORIES = [
-  { name: '☕ Кофе', amount: 300, icon: '☕' },
-  { name: '🍔 Обед', amount: 600, icon: '🍔' },
-  { name: '🚕 Такси', amount: 400, icon: '🚕' },
-  { name: '🎬 Кино', amount: 500, icon: '🎬' },
-  { name: '🛍 Покупки', amount: 1500, icon: '🛍' },
-  { name: '🍷 Бар', amount: 2000, icon: '🍷' }
+  { name: 'Кофе', icon: '☕' },
+  { name: 'Обед', icon: '🍔' },
+  { name: 'Такси', icon: '🚕' },
+  { name: 'Кино', icon: '🎬' },
+  { name: 'Покупки', icon: '🛍' },
+  { name: 'Бар', icon: '🍷' }
 ]
 
+const STORAGE_KEY = 'daylimit-category-amounts'
+
+// === СОСТОЯНИЕ ===
 const customAmount = ref(0)
+const selectedCategory = ref(null)
+const amountInput = ref(null)
 
-// Сброс суммы при закрытии модалки
-watch(
-  () => props.modelValue,
-  (isOpen) => {
-    if (!isOpen) {
-      customAmount.value = 0
-    }
+// Реактивный объект для хранения сумм категорий
+const categoryAmounts = ref({})
+
+// === РАБОТА С LOCALSTORAGE (реактивно) ===
+function loadCategoryAmounts() {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY)
+    categoryAmounts.value = data ? JSON.parse(data) : {}
+  } catch {
+    categoryAmounts.value = {}
   }
-)
-
-function handleCategoryClick(category) {
-  emit('transaction', {
-    id: generateId(),
-    name: category.name,
-    amount: category.amount,
-    date: new Date().toISOString()
-  })
-  emit('update:modelValue', false)
 }
 
-function handleCustomTransaction() {
-  if (customAmount.value > 0) {
-    emit('transaction', {
-      id: generateId(),
-      name: '💳 Покупка',
-      amount: customAmount.value,
-      date: new Date().toISOString()
-    })
-    emit('update:modelValue', false)
-    customAmount.value = 0
+function saveCategoryAmount(categoryName, amount) {
+  // Создаём новый объект, чтобы триггерить реактивность
+  const newAmounts = { ...categoryAmounts.value }
+  newAmounts[categoryName] = amount
+  categoryAmounts.value = newAmounts
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(newAmounts))
+}
+
+function getCategoryAmount(categoryName) {
+  return categoryAmounts.value[categoryName] || 0
+}
+
+// Загружаем данные сразу
+loadCategoryAmounts()
+
+// === ВЫЧИСЛЕНИЯ ===
+const categoriesWithLastAmount = computed(() => {
+  return PRESET_CATEGORIES.map(cat => ({
+    ...cat,
+    lastAmount: getCategoryAmount(cat.name)
+  }))
+})
+
+function formatNumber(value) {
+  return new Intl.NumberFormat('ru-RU').format(Math.round(value))
+}
+
+// === ДЕЙСТВИЯ ===
+function selectCategory(cat) {
+  selectedCategory.value = cat
+  const saved = getCategoryAmount(cat.name)
+  customAmount.value = saved > 0 ? saved : 0
+  nextTick(() => {
+    if (amountInput.value) {
+      amountInput.value.focus()
+      amountInput.value.select()
+    }
+  })
+}
+
+function addTransaction() {
+  if (!customAmount.value || customAmount.value <= 0) return
+
+  let name = '💳 Покупка'
+  if (selectedCategory.value) {
+    name = `${selectedCategory.value.icon} ${selectedCategory.value.name}`
+    // Сохраняем сумму реактивно
+    saveCategoryAmount(selectedCategory.value.name, customAmount.value)
   }
+
+  emit('transaction', {
+    id: generateId(),
+    name: name,
+    amount: customAmount.value,
+    date: new Date().toISOString()
+  })
+
+  closeModal()
+}
+
+function closeModal() {
+  emit('update:modelValue', false)
+  selectedCategory.value = null
+  customAmount.value = 0
 }
 
 function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2)
 }
+
+// === СБРОС ПРИ ЗАКРЫТИИ ===
+watch(
+  () => props.modelValue,
+  (isOpen) => {
+    if (!isOpen) {
+      selectedCategory.value = null
+      customAmount.value = 0
+    }
+  }
+)
 </script>
 
 <style scoped>
+/* Модалка */
 .modal {
   position: fixed;
   inset: 0;
@@ -161,6 +232,7 @@ function generateId() {
   color: #1f2937;
 }
 
+/* Категории */
 .categories {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -170,15 +242,15 @@ function generateId() {
 
 .cat-btn {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
-  padding: 14px 8px;
+  gap: 12px;
+  padding: 12px 16px;
   background: #f3f4f6;
   border: 2px solid transparent;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s;
+  text-align: left;
 }
 
 .cat-btn:hover {
@@ -186,25 +258,35 @@ function generateId() {
   border-color: #d1d5db;
 }
 
-.cat-btn:active {
-  transform: scale(0.97);
+.cat-btn.active {
+  border-color: #4f46e5;
+  background: #eef2ff;
 }
 
 .cat-icon {
   font-size: 28px;
+  flex-shrink: 0;
+}
+
+.cat-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .cat-name {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 600;
-  color: #374151;
+  color: #1f2937;
 }
 
-.cat-amount {
+.cat-last-amount {
   font-size: 12px;
   color: #6b7280;
+  margin-top: 2px;
 }
 
+/* Ввод суммы */
 .custom-amount {
   margin-bottom: 24px;
 }
@@ -233,6 +315,8 @@ function generateId() {
   outline: none;
   transition: border-color 0.2s;
   box-sizing: border-box;
+  background: white;
+  color: #1f2937;
 }
 
 .input-group input:focus {
@@ -248,6 +332,17 @@ function generateId() {
   pointer-events: none;
 }
 
+.input-group input[type="number"]::-webkit-inner-spin-button,
+.input-group input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.input-group input[type="number"] {
+  -moz-appearance: textfield;
+}
+
+/* Кнопки */
 .modal-buttons {
   display: flex;
   gap: 12px;
@@ -286,16 +381,5 @@ function generateId() {
 .btn-primary:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-/* Убираем стандартные стрелки у number input */
-.input-group input[type="number"]::-webkit-inner-spin-button,
-.input-group input[type="number"]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-.input-group input[type="number"] {
-  -moz-appearance: textfield;
 }
 </style>

@@ -193,6 +193,7 @@ function saveTransactions() {
 function loadTransactions() {
   const saved = localStorage.getItem(getMonthKey())
   transactions.value = saved ? JSON.parse(saved) : []
+  console.log('📂 Загружено транзакций:', transactions.value.length)
 }
 
 // === ВЫЧИСЛЕНИЯ ===
@@ -372,12 +373,16 @@ const progressFillClass = computed(() => {
   return ''
 })
 
-const todayTransactions = computed(() => transactions.value.filter(t => isToday(t.date)))
-
+const todayTransactions = computed(() => {
+  const result = transactions.value.filter(t => isToday(t.date))
+  console.log('todayTransactions пересчитан, длина:', result.length)
+  return result
+})
 // === ТРАТЫ ===
 // Никаких мутаций settings: добавили транзакцию — модель пересчиталась сама.
 function handleTransaction(transaction) {
-  transactions.value.unshift(transaction)
+  transactions.value = [transaction, ...transactions.value]
+  console.log('Новая транзакция добавлена, всего:', transactions.value.length)
   saveTransactions()
 }
 
