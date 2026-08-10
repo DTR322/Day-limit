@@ -117,11 +117,11 @@
         <span class="btn-edit-icon">📊</span>
         <span class="btn-edit-text">Расходы</span>
       </button>
-      <button class="btn-edit" @click="showGoalEditor = true">
+      <button class="btn-edit" @click="openGoalEditor">
         <span class="btn-edit-icon">🎯</span>
         <span class="btn-edit-text">Цель</span>
       </button>
-      <button class="btn-edit" @click="showBalanceEditor = true">
+      <button class="btn-edit" @click="openBalanceEditor">
         <span class="btn-edit-icon">⚖️</span>
         <span class="btn-edit-text">Долги/Накопления</span>
       </button>
@@ -202,6 +202,29 @@ const showBalanceEditor = ref(false)
 
 // === ВЫЧИСЛЯЕМОЕ СВОЙСТВО ДЛЯ РАСХОДОВ ===
 const settingsExpenses = computed(() => settings.value?.expenses || {})
+
+// === ОБРАБОТЧИКИ ОТКРЫТИЯ РЕДАКТОРОВ ===
+function openGoalEditor() {
+  if (!settings.value) return
+  // Устанавливаем значения по умолчанию, если не заданы
+  if (!settings.value.goal) settings.value.goal = ''
+  if (!settings.value.goalAmount) settings.value.goalAmount = 0
+  if (!settings.value.savings) settings.value.savings = 0
+  if (!settings.value.customGoalName) settings.value.customGoalName = ''
+  showGoalEditor.value = true
+}
+
+function openBalanceEditor() {
+  if (!settings.value) return
+  // Устанавливаем значения по умолчанию, если не заданы
+  if (settings.value.totalDebt === undefined || settings.value.totalDebt === null) {
+    settings.value.totalDebt = 0
+  }
+  if (settings.value.totalSavings === undefined || settings.value.totalSavings === null) {
+    settings.value.totalSavings = 0
+  }
+  showBalanceEditor.value = true
+}
 
 // === ОБРАБОТЧИКИ СОХРАНЕНИЯ ===
 function handleIncomeSave(newIncome) {
