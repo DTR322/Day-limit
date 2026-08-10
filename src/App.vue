@@ -11,10 +11,13 @@ import { RouterView } from 'vue-router'
 <style>
 /* Глобальные стили вынесены в style.css */
 #app {
-  max-width: 480px;
+  width: 100%;
+  max-width: 520px;
   margin: 0 auto;
   min-height: 100vh;
-  background-color: #ffffff;
-  box-shadow: 0 0 20px rgba(0,0,0,0.05);
+  background-color: var(--color-bg-secondary);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
 }
 </style>
