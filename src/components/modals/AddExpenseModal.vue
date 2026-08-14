@@ -2,7 +2,10 @@
   <div class="modal" v-show="modelValue">
     <div class="modal-backdrop" @click="closeModal"></div>
     <div class="modal-content">
-      <h3 class="modal-title">Новая трата</h3>
+      <div class="modal-header">
+        <h3 class="modal-title">Новая трата</h3>
+        <button class="close-modal-btn" @click="closeModal">×</button>
+      </div>
 
       <div class="categories">
         <button
@@ -56,15 +59,10 @@
 import { ref, watch, nextTick, computed } from 'vue'
 
 const props = defineProps({
-  modelValue: {
-    type: Boolean,
-    required: true
-  }
+  modelValue: { type: Boolean, required: true }
 })
-
 const emit = defineEmits(['update:modelValue', 'transaction'])
 
-// === КОНСТАНТЫ ===
 const PRESET_CATEGORIES = [
   { name: 'Кофе', icon: '☕' },
   { name: 'Обед', icon: '🍔' },
@@ -75,27 +73,20 @@ const PRESET_CATEGORIES = [
 ]
 
 const STORAGE_KEY = 'daylimit-category-amounts'
-
-// === СОСТОЯНИЕ ===
 const customAmount = ref(0)
 const selectedCategory = ref(null)
 const amountInput = ref(null)
-
-// Реактивный объект для хранения сумм категорий
 const categoryAmounts = ref({})
 
-// === РАБОТА С LOCALSTORAGE (реактивно) ===
 function loadCategoryAmounts() {
   try {
     const data = localStorage.getItem(STORAGE_KEY)
     categoryAmounts.value = data ? JSON.parse(data) : {}
-  } catch {
-    categoryAmounts.value = {}
-  }
+  } catch { categoryAmounts.value = {} }
 }
+loadCategoryAmounts()
 
 function saveCategoryAmount(categoryName, amount) {
-  // Создаём новый объект, чтобы триггерить реактивность
   const newAmounts = { ...categoryAmounts.value }
   newAmounts[categoryName] = amount
   categoryAmounts.value = newAmounts
@@ -106,10 +97,6 @@ function getCategoryAmount(categoryName) {
   return categoryAmounts.value[categoryName] || 0
 }
 
-// Загружаем данные сразу
-loadCategoryAmounts()
-
-// === ВЫЧИСЛЕНИЯ ===
 const categoriesWithLastAmount = computed(() => {
   return PRESET_CATEGORIES.map(cat => ({
     ...cat,
@@ -121,7 +108,6 @@ function formatNumber(value) {
   return new Intl.NumberFormat('ru-RU').format(Math.round(value))
 }
 
-// === ДЕЙСТВИЯ ===
 function selectCategory(cat) {
   selectedCategory.value = cat
   const saved = getCategoryAmount(cat.name)
@@ -136,21 +122,17 @@ function selectCategory(cat) {
 
 function addTransaction() {
   if (!customAmount.value || customAmount.value <= 0) return
-
   let name = '💳 Покупка'
   if (selectedCategory.value) {
     name = `${selectedCategory.value.icon} ${selectedCategory.value.name}`
-    // Сохраняем сумму реактивно
     saveCategoryAmount(selectedCategory.value.name, customAmount.value)
   }
-
   emit('transaction', {
     id: generateId(),
     name: name,
     amount: customAmount.value,
     date: new Date().toISOString()
   })
-
   closeModal()
 }
 
@@ -164,171 +146,134 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).substr(2)
 }
 
-// === СБРОС ПРИ ЗАКРЫТИИ ===
-watch(
-  () => props.modelValue,
-  (isOpen) => {
-    if (!isOpen) {
-      selectedCategory.value = null
-      customAmount.value = 0
-    }
+watch(() => props.modelValue, (isOpen) => {
+  if (!isOpen) {
+    selectedCategory.value = null
+    customAmount.value = 0
   }
-)
+})
 </script>
 
 <style scoped>
-/* Модалка */
 .modal {
   position: fixed;
   inset: 0;
   z-index: 1000;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   padding: 20px;
 }
-
 .modal-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.5);
-  animation: fadeIn 0.2s ease;
+  background: rgba(0,0,0,0.6);
+  animation: fadeIn 0.25s ease;
 }
-
-.modal-content {
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-  max-height: 90vh;
-  overflow-y: auto;
-  background: white;
-  border-radius: 20px;
-  padding: 24px;
-  z-index: 1;
-  animation: popIn 0.2s ease;
-}
-
 @keyframes fadeIn {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-@keyframes popIn {
-  from {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
+.modal-content {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  background: #16161F;
+  border-radius: 32px 32px 0 0;
+  padding: 24px 24px 32px;
+  z-index: 1;
+  animation: slideUp 0.3s ease;
+  border: 1px solid rgba(255,255,255,0.05);
+}
+@keyframes slideUp {
+  from { transform: translateY(30px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
 }
 
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
 .modal-title {
   font-size: 20px;
   font-weight: 700;
-  text-align: center;
-  margin: 0 0 24px;
-  color: #1f2937;
+  color: #ffffff;
+  margin: 0;
 }
+.close-modal-btn {
+  background: none;
+  border: none;
+  color: #6B6B80;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0 8px;
+}
+.close-modal-btn:hover { color: #ffffff; }
 
-/* Категории */
 .categories {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
   margin-bottom: 24px;
 }
-
 .cat-btn {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  background: #f3f4f6;
-  border: 2px solid transparent;
-  border-radius: 12px;
+  padding: 14px 16px;
+  background: #1E1E2A;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
 }
-
-.cat-btn:hover {
-  background: #e5e7eb;
-  border-color: #d1d5db;
-}
-
+.cat-btn:hover { background: #2A2A38; border-color: rgba(255,255,255,0.08); }
 .cat-btn.active {
-  border-color: #4f46e5;
-  background: #eef2ff;
+  background: #2A2A38;
+  border-color: #F5A623;
 }
+.cat-icon { font-size: 24px; flex-shrink: 0; }
+.cat-info { display: flex; flex-direction: column; }
+.cat-name { font-size: 14px; font-weight: 600; color: #ffffff; }
+.cat-last-amount { font-size: 12px; color: #6B6B80; margin-top: 2px; }
 
-.cat-icon {
-  font-size: 28px;
-  flex-shrink: 0;
-}
-
-.cat-info {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.cat-name {
-  font-size: 15px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.cat-last-amount {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-/* Ввод суммы */
-.custom-amount {
-  margin-bottom: 24px;
-}
-
+.custom-amount { margin-bottom: 24px; }
 .custom-amount label {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #374151;
+  color: #8E8EA0;
   margin-bottom: 8px;
 }
-
 .input-group {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .input-group input {
   width: 100%;
-  padding: 16px 50px 16px 16px;
-  font-size: 24px;
+  padding: 18px 60px 18px 18px;
+  font-size: 28px;
   font-weight: 700;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
   outline: none;
   transition: border-color 0.2s;
+  background: #1E1E2A;
+  color: #ffffff;
   box-sizing: border-box;
-  background: white;
-  color: #1f2937;
 }
-
-.input-group input:focus {
-  border-color: #4f46e5;
-}
-
+.input-group input:focus { border-color: #F5A623; }
 .input-group .suffix {
   position: absolute;
-  right: 16px;
+  right: 18px;
   font-size: 20px;
   font-weight: 600;
-  color: #6b7280;
+  color: #6B6B80;
   pointer-events: none;
 }
 
@@ -337,49 +282,31 @@ watch(
   -webkit-appearance: none;
   margin: 0;
 }
+.input-group input[type="number"] { -moz-appearance: textfield; }
 
-.input-group input[type="number"] {
-  -moz-appearance: textfield;
-}
-
-/* Кнопки */
 .modal-buttons {
   display: flex;
   gap: 12px;
 }
-
-.btn-secondary,
-.btn-primary {
+.btn-secondary, .btn-primary {
   flex: 1;
   padding: 16px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
 }
-
 .btn-secondary {
-  background: #f3f4f6;
-  color: #374151;
+  background: rgba(255,255,255,0.06);
+  color: #8E8EA0;
 }
-
-.btn-secondary:hover {
-  background: #e5e7eb;
-}
-
+.btn-secondary:hover { background: rgba(255,255,255,0.1); }
 .btn-primary {
-  background: #4f46e5;
-  color: white;
+  background: linear-gradient(135deg, #F5A623, #E0941A);
+  color: #0B0B10;
 }
-
-.btn-primary:hover {
-  background: #4338ca;
-}
-
-.btn-primary:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
+.btn-primary:hover { transform: scale(1.01); }
+.btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
 </style>

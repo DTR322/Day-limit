@@ -1,9 +1,23 @@
 <template>
   <div class="container">
-    <!-- Главная карточка -->
+    <!-- Главная карточка с лимитом -->
     <div class="limit-card" :class="limitCardClass">
       <div class="limit-label">{{ data.hasDebtScenario ? 'Нужно отложить сегодня' : 'Можно потратить сегодня' }}</div>
-      <div class="limit-amount">{{ formatMoney(displayLimit) }} ₽</div>
+      <div class="limit-amount">
+        {{ formatMoney(displayLimit) }} <span class="currency-symbol">₽</span>
+      </div>
+
+      <!-- Прогресс -->
+      <div class="progress-wrap">
+        <div class="progress-bar">
+          <div class="progress-fill" :class="progressFillClass" :style="{ width: progressPercent + '%' }"></div>
+        </div>
+        <div class="progress-text">
+          {{ data.hasDebtScenario ? 'Отложено' : 'Потрачено' }}
+          <span class="progress-values">{{ formatMoney(data.totalSpentToday) }} ₽ / {{ formatMoney(data.dailyLimit) }} ₽</span>
+        </div>
+      </div>
+
       <div v-if="data.hasDebtScenario" class="limit-hint limit-debt-hint">
         Ежедневный долг: {{ formatMoney(data.dailyDebt) }} ₽ • До зарплаты {{ data.daysRemaining }} {{ getDaysWord(data.daysRemaining) }}
       </div>
@@ -12,34 +26,20 @@
       </div>
     </div>
 
-    <!-- Прогресс -->
-    <div class="progress-card">
-      <div class="progress-header">
-        <span>{{ data.hasDebtScenario ? 'Отложено сегодня' : 'Потрачено сегодня' }}</span>
-        <span>{{ formatMoney(data.totalSpentToday) }} ₽ / {{ formatMoney(data.dailyLimit) }} ₽</span>
-      </div>
-      <div class="progress-bar">
-        <div class="progress-fill" :class="progressFillClass" :style="{ width: progressPercent + '%' }"></div>
-      </div>
-    </div>
-
-    <!-- Метрики -->
+    <!-- Метрики (3 карточки) -->
     <div class="metrics">
       <div class="metric">
         <div class="metric-value">{{ data.daysRemaining }}</div>
-        <div class="metric-label">дней до зарплаты</div>
+        <div class="metric-label">дней до ЗП</div>
       </div>
       <div class="metric">
         <div class="metric-value">{{ formatMoney(data.availableMoney) }} ₽</div>
-        <div class="metric-label">{{ data.hasDebtScenario ? 'дефицит в месяц' : 'доступно в месяц' }}</div>
+        <div class="metric-label">{{ data.hasDebtScenario ? 'дефицит' : 'доступно в месяц' }}</div>
       </div>
-
-      <!-- Цель / долг -->
       <div class="metric" :class="{ 'goal-metric': showGoalProgress }">
         <div v-if="showGoalProgress" class="goal-progress-wrap">
           <div class="goal-progress-fill" :style="{ width: data.goalProgressPercent + '%' }"></div>
         </div>
-
         <div class="metric-value" :class="{ debt: data.debt > 0 || data.hasDebtScenario }">
           <template v-if="data.hasDebtScenario">
             -{{ formatMoney(data.monthlyDeficit) }} ₽
@@ -51,25 +51,15 @@
             {{ formatMoney(data.savedNow) }} ₽
           </template>
         </div>
-
         <div class="metric-label">
-          <template v-if="data.hasDebtScenario">
-            ежемесячный долг
-          </template>
-          <template v-else-if="data.debt > 0">
-            долг
-          </template>
+          <template v-if="data.hasDebtScenario">ежемесячный долг</template>
+          <template v-else-if="data.debt > 0">долг</template>
           <template v-else-if="data.initialGoal > 0">
             из {{ formatMoney(data.initialGoal) }} ₽ · {{ data.goalProgressPercent }}%
           </template>
-          <template v-else>
-            цель не выбрана
-          </template>
+          <template v-else>цель не выбрана</template>
         </div>
-
-        <div v-if="showGoalProgress" class="metric-label goal-name">
-          {{ data.goalTitle }}
-        </div>
+        <div v-if="showGoalProgress" class="metric-label goal-name">{{ data.goalTitle }}</div>
       </div>
     </div>
 
@@ -104,10 +94,9 @@
       </div>
     </div>
 
-    <!-- Кнопки -->
+    <!-- Кнопки действий -->
     <button class="btn-add" @click="showAddModal = true">+ Добавить трату</button>
-    
-    <!-- Кнопки редактирования параметров -->
+
     <div class="edit-buttons-grid">
       <button class="btn-edit" @click="showIncomeEditor = true">
         <span class="btn-edit-icon">💰</span>
@@ -126,17 +115,16 @@
         <span class="btn-edit-text">Долги/Накопления</span>
       </button>
     </div>
-    
+
     <button class="btn-settings" @click="goToSalarySettings">Настройки зарплаты</button>
   </div>
 
-  <!-- Модалка добавления траты -->
+  <!-- Модалки -->
   <AddExpenseModal
     v-model="showAddModal"
     @transaction="handleTransaction"
   />
 
-  <!-- Редакторы параметров -->
   <IncomeEditor
     v-if="showIncomeEditor"
     :income="settings?.income || 0"
@@ -194,19 +182,15 @@ const settings = ref(null)
 const transactions = ref([])
 const showAddModal = ref(false)
 
-// === СОСТОЯНИЕ ДЛЯ РЕДАКТОРОВ ===
 const showIncomeEditor = ref(false)
 const showExpensesEditor = ref(false)
 const showGoalEditor = ref(false)
 const showBalanceEditor = ref(false)
 
-// === ВЫЧИСЛЯЕМОЕ СВОЙСТВО ДЛЯ РАСХОДОВ ===
 const settingsExpenses = computed(() => settings.value?.expenses || {})
 
-// === ОБРАБОТЧИКИ ОТКРЫТИЯ РЕДАКТОРОВ ===
 function openGoalEditor() {
   if (!settings.value) return
-  // Устанавливаем значения по умолчанию, если не заданы
   if (!settings.value.goal) settings.value.goal = ''
   if (!settings.value.goalAmount) settings.value.goalAmount = 0
   if (!settings.value.savings) settings.value.savings = 0
@@ -216,17 +200,11 @@ function openGoalEditor() {
 
 function openBalanceEditor() {
   if (!settings.value) return
-  // Устанавливаем значения по умолчанию, если не заданы
-  if (settings.value.totalDebt === undefined || settings.value.totalDebt === null) {
-    settings.value.totalDebt = 0
-  }
-  if (settings.value.totalSavings === undefined || settings.value.totalSavings === null) {
-    settings.value.totalSavings = 0
-  }
+  if (settings.value.totalDebt === undefined || settings.value.totalDebt === null) settings.value.totalDebt = 0
+  if (settings.value.totalSavings === undefined || settings.value.totalSavings === null) settings.value.totalSavings = 0
   showBalanceEditor.value = true
 }
 
-// === ОБРАБОТЧИКИ СОХРАНЕНИЯ ===
 function handleIncomeSave(newIncome) {
   if (!settings.value) return
   settings.value.income = newIncome
@@ -266,7 +244,6 @@ const LIMIT_DANGER_THRESHOLD = 500
 const PROGRESS_WARNING_PERCENT = 50
 const PROGRESS_DANGER_PERCENT = 80
 
-// === УТИЛИТЫ ===
 function formatMoney(amount) {
   return new Intl.NumberFormat('ru-RU').format(Math.round(Math.abs(amount || 0)))
 }
@@ -303,7 +280,6 @@ function getTransactionName(name) {
   return name.split(' ').slice(1).join(' ') || name
 }
 
-// === ЗАГРУЗКА/СОХРАНЕНИЕ ===
 function loadSettings() {
   const saved = localStorage.getItem('daylimit-settings')
   if (!saved) {
@@ -327,8 +303,6 @@ function loadTransactions() {
 }
 
 // === ВЫЧИСЛЕНИЯ ===
-// Вся финансовая модель ВЫВОДИТСЯ из settings + трат, ничего не мутирует.
-// Каскад покрытия трат: свободные деньги -> накопления в цели -> долг.
 const data = computed(() => {
   if (!settings.value) {
     return {
@@ -369,62 +343,39 @@ const data = computed(() => {
   const freeMoney = income - fixedExpenses
   const hasDebtScenario = monthlyDeficit > 0
 
-  // === АВТОМАТИЧЕСКИЙ ПЕРЕСЧЁТ ДНЕЙ ДО ЗП ===
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  
+
   let daysRemaining = 30
-  let nextPaydayDate = null
-  
-  // Проверяем режим выплаты
   const payFrequency = s.payFrequency || 'once'
-  
+
   if (payFrequency === 'twice' && (s.advanceDate || s.salaryDateTwice)) {
-    // Режим 2 раза в месяц - находим ближайшую зарплату
     const dates = []
-    
     if (s.advanceDate) {
       const adv = new Date(s.advanceDate)
       const nextAdv = new Date(adv)
       nextAdv.setDate(nextAdv.getDate() + 30)
-      while (nextAdv < today) {
-        nextAdv.setDate(nextAdv.getDate() + 30)
-      }
+      while (nextAdv < today) nextAdv.setDate(nextAdv.getDate() + 30)
       dates.push(nextAdv)
     }
-    
     if (s.salaryDateTwice) {
       const sal = new Date(s.salaryDateTwice)
       const nextSal = new Date(sal)
       nextSal.setDate(nextSal.getDate() + 30)
-      while (nextSal < today) {
-        nextSal.setDate(nextSal.getDate() + 30)
-      }
+      while (nextSal < today) nextSal.setDate(nextSal.getDate() + 30)
       dates.push(nextSal)
     }
-    
     if (dates.length > 0) {
-      // Находим ближайшую дату
       let minDate = dates[0]
-      for (const d of dates) {
-        if (d < minDate) minDate = d
-      }
-      nextPaydayDate = minDate
+      for (const d of dates) if (d < minDate) minDate = d
       daysRemaining = Math.max(1, Math.ceil((minDate - today) / (1000 * 60 * 60 * 24)))
     }
   } else {
-    // Режим 1 раз в месяц (или старый формат)
     const lastPayday = s.lastPayday ? new Date(s.lastPayday) : new Date()
     const payCycle = Number(s.payCycle) || 30
-    
     const nextPayday = new Date(lastPayday)
     nextPayday.setDate(nextPayday.getDate() + payCycle)
-    
-    while (nextPayday < today) {
-      nextPayday.setDate(nextPayday.getDate() + payCycle)
-    }
-    
-    nextPaydayDate = nextPayday
+    while (nextPayday < today) nextPayday.setDate(nextPayday.getDate() + payCycle)
     daysRemaining = Math.max(1, Math.ceil((nextPayday - today) / (1000 * 60 * 60 * 24)))
   }
 
@@ -443,42 +394,24 @@ const data = computed(() => {
   } else {
     monthlyContribution = freeMoney * (savingsPercent / 100)
     monthlyBudget = freeMoney - monthlyContribution
-    // Дневной лимит = свободные деньги / дней до ЗП
     dailyLimit = monthlyBudget / daysRemaining
   }
 
   const totalSpentMonth = transactions.value.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
-  const totalSpentToday = transactions.value
-    .filter(t => isToday(t.date))
-    .reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
+  const totalSpentToday = transactions.value.filter(t => isToday(t.date)).reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
 
-  // === КАСКАД: свободные -> накопления -> долг ===
   const initialGoal = Number(s.goalAmount) || 0
   const totalSavings = Number(s.totalSavings) || 0
 
-  const goalBase = hasDebtScenario
-    ? 0
-    : (s.goal === 'debt' ? 0 : totalSavings) + monthlyContribution
-
-  const overspend = hasDebtScenario
-    ? totalSpentMonth
-    : Math.max(0, totalSpentMonth - monthlyBudget)
-
+  const goalBase = hasDebtScenario ? 0 : (s.goal === 'debt' ? 0 : totalSavings) + monthlyContribution
+  const overspend = hasDebtScenario ? totalSpentMonth : Math.max(0, totalSpentMonth - monthlyBudget)
   const goalSaved = Math.max(0, goalBase - overspend)
-  const debt = hasDebtScenario
-    ? totalSpentMonth
-    : Math.max(0, overspend - goalBase)
+  const debt = hasDebtScenario ? totalSpentMonth : Math.max(0, overspend - goalBase)
 
-  const availableMoney = hasDebtScenario
-    ? monthlyDeficit
-    : Math.max(0, monthlyBudget - totalSpentMonth)
-
+  const availableMoney = hasDebtScenario ? monthlyDeficit : Math.max(0, monthlyBudget - totalSpentMonth)
   const remainingToday = dailyLimit - totalSpentToday
-
   const savedNow = goalSaved
-  const goalProgressPercent = initialGoal > 0
-    ? Math.min(100, Math.round((savedNow / initialGoal) * 100))
-    : 0
+  const goalProgressPercent = initialGoal > 0 ? Math.min(100, Math.round((savedNow / initialGoal) * 100)) : 0
 
   const goalTitles = {
     safety: 'Подушка безопасности',
@@ -509,14 +442,8 @@ const data = computed(() => {
   }
 })
 
-const showGoalProgress = computed(() =>
-  !data.value.hasDebtScenario && data.value.debt <= 0 && data.value.initialGoal > 0
-)
-
-const displayLimit = computed(() => {
-  if (data.value.hasDebtScenario) return data.value.dailyDebt
-  return Math.max(0, data.value.remainingToday)
-})
+const showGoalProgress = computed(() => !data.value.hasDebtScenario && data.value.debt <= 0 && data.value.initialGoal > 0)
+const displayLimit = computed(() => data.value.hasDebtScenario ? data.value.dailyDebt : Math.max(0, data.value.remainingToday))
 
 const limitCardClass = computed(() => {
   if (data.value.hasDebtScenario) return 'debt-scenario'
@@ -550,8 +477,7 @@ const todayTransactions = computed(() => {
   console.log('todayTransactions пересчитан, длина:', result.length)
   return result
 })
-// === ТРАТЫ ===
-// Никаких мутаций settings: добавили транзакцию — модель пересчиталась сама.
+
 function handleTransaction(transaction) {
   transactions.value = [transaction, ...transactions.value]
   console.log('Новая транзакция добавлена, всего:', transactions.value.length)
@@ -568,9 +494,7 @@ function deleteTransaction(id) {
 function clearTodayExpenses() {
   const today = transactions.value.filter(t => isToday(t.date))
   if (today.length === 0) return
-
   const totalAmountToday = today.reduce((sum, t) => sum + (Number(t.amount) || 0), 0)
-
   if (confirm(`Очистить все траты за сегодня? Будет удалено ${today.length} транзакций на сумму ${formatMoney(totalAmountToday)} ₽`)) {
     today.forEach(t => {
       const idx = transactions.value.findIndex(tr => tr.id === t.id)
@@ -593,347 +517,287 @@ onMounted(() => {
 </script>
 
 <style scoped>
+/* ——— Общие ——— */
+* {
+  box-sizing: border-box;
+}
 .container {
   max-width: 480px;
   margin: 0 auto;
   padding: 20px;
+  background: #0B0B10;
+  min-height: 100vh;
+  color: #ffffff;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
+/* ——— Карточка лимита ——— */
 .limit-card {
-  background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-  border-radius: 20px;
-  padding: 24px;
+  background: linear-gradient(145deg, #16161F, #1E1E2A);
+  border-radius: 28px;
+  padding: 32px 24px 24px;
   text-align: center;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  border: 1px solid rgba(255,255,255,0.04);
   transition: all 0.3s;
-}
-
-.limit-card.warning {
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-}
-
-.limit-card.danger {
-  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
-}
-
-.limit-card.overspent {
-  background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 100%);
-}
-
-.limit-card.debt-scenario {
-  background: linear-gradient(135deg, #991b1b 0%, #7f1d1d 100%);
-}
-
-.limit-debt-hint {
-  font-size: 12px;
-  opacity: 0.85;
-  margin-top: 4px;
-}
-
-.limit-label {
-  font-size: 14px;
-  opacity: 0.9;
-  margin-bottom: 8px;
-}
-
-.limit-amount {
-  font-size: 42px;
-  font-weight: 800;
-  line-height: 1;
-  margin-bottom: 8px;
-}
-
-.limit-hint {
-  font-size: 13px;
-  opacity: 0.8;
-}
-
-.progress-card {
-  background: white;
-  border-radius: 16px;
-  padding: 20px;
-  margin-bottom: 16px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-}
-
-.progress-header {
-  display: flex;
-  justify-content: space-between;
-  font-size: 14px;
-  color: #6b7280;
-  margin-bottom: 12px;
-}
-
-.progress-bar {
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: #4f46e5;
-  border-radius: 4px;
-  transition: width 0.3s ease, background-color 0.3s;
-}
-
-.progress-fill.warning {
-  background: #f59e0b;
-}
-
-.progress-fill.danger {
-  background: #ef4444;
-}
-
-.metrics {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.metric {
-  background: white;
-  border-radius: 12px;
-  padding: 16px 12px;
-  text-align: center;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.metric-value {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 4px;
-}
-
-.metric-value.debt {
-  color: #ef4444;
-}
-
-.metric-label {
-  font-size: 11px;
-  color: #6b7280;
-  line-height: 1.3;
-}
-
-.goal-metric {
   position: relative;
   overflow: hidden;
 }
+.limit-card::after {
+  content: '';
+  position: absolute;
+  top: -30%;
+  right: -20%;
+  width: 200px;
+  height: 200px;
+  background: radial-gradient(circle, rgba(245,166,35,0.06) 0%, transparent 70%);
+  pointer-events: none;
+}
+.limit-card.warning { border-color: rgba(245,158,11,0.3); }
+.limit-card.danger { border-color: rgba(239,68,68,0.3); }
+.limit-card.overspent { border-color: rgba(239,68,68,0.5); }
+.limit-card.debt-scenario { border-color: rgba(239,68,68,0.2); }
 
+.limit-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #8E8EA0;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+.limit-amount {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  color: #ffffff;
+}
+.currency-symbol {
+  font-size: 28px;
+  color: #F5A623;
+  margin-left: 4px;
+}
+.limit-hint {
+  font-size: 13px;
+  color: #8E8EA0;
+  margin-top: 12px;
+}
+.limit-debt-hint { color: #ef4444; }
+
+/* ——— Прогресс ——— */
+.progress-wrap {
+  margin-top: 20px;
+}
+.progress-bar {
+  height: 4px;
+  background: #2A2A38;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.progress-fill {
+  height: 100%;
+  background: #F5A623;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+}
+.progress-fill.warning { background: #f59e0b; }
+.progress-fill.danger { background: #ef4444; }
+.progress-text {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #6B6B80;
+  margin-top: 8px;
+}
+.progress-values { color: #B0B0C0; }
+
+/* ——— Метрики ——— */
+.metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.metric {
+  background: #16161F;
+  border-radius: 16px;
+  padding: 16px 10px;
+  text-align: center;
+  border: 1px solid rgba(255,255,255,0.03);
+}
+.metric-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+.metric-value.debt { color: #ef4444; }
+.metric-label {
+  font-size: 11px;
+  color: #6B6B80;
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.goal-metric { position: relative; overflow: hidden; }
 .goal-progress-wrap {
   position: absolute;
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: #e5e7eb;
+  height: 3px;
+  background: #2A2A38;
 }
-
 .goal-progress-fill {
   height: 100%;
-  background: #10b981;
+  background: #F5A623;
   transition: width 0.4s ease;
 }
-
 .goal-name {
-  margin-top: 4px;
-  font-weight: 600;
-  opacity: 0.9;
+  font-size: 10px;
+  color: #8E8EA0;
+  margin-top: 2px;
+  opacity: 0.8;
 }
 
+/* ——— Траты ——— */
 .section-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 12px;
 }
-
 .section-header h3 {
-  font-size: 18px;
-  font-weight: 700;
-  color: #1f2937;
+  font-size: 16px;
+  font-weight: 600;
+  color: #ffffff;
   margin: 0;
 }
-
 .text-btn {
   background: none;
   border: none;
-  color: #4f46e5;
-  font-size: 14px;
-  font-weight: 600;
+  color: #6B6B80;
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  padding: 8px 12px;
-  border-radius: 8px;
-  transition: background 0.2s;
+  padding: 4px 0;
+  transition: color 0.2s;
 }
-
-.text-btn:hover {
-  background: #eef2ff;
-}
+.text-btn:hover { color: #F5A623; }
 
 .transactions {
-  background: white;
-  border-radius: 16px;
-  padding: 16px;
+  background: #16161F;
+  border-radius: 20px;
+  padding: 8px 0;
   margin-bottom: 24px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(255,255,255,0.03);
 }
-
 .empty-state {
   text-align: center;
   padding: 32px 16px;
 }
-
-.empty-icon {
-  font-size: 48px;
-  margin-bottom: 12px;
-}
-
-.empty-title {
-  font-size: 16px;
-  color: #6b7280;
-}
+.empty-icon { font-size: 40px; margin-bottom: 8px; opacity: 0.4; }
+.empty-title { font-size: 15px; color: #6B6B80; }
 
 .transaction {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
 }
-
-.transaction:last-child {
-  border-bottom: none;
-}
-
-.transaction-left {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
+.transaction:last-child { border-bottom: none; }
+.transaction-left { display: flex; align-items: center; gap: 12px; }
 .transaction-icon {
   width: 40px;
   height: 40px;
-  background: #f3f4f6;
-  border-radius: 10px;
+  background: #1E1E2A;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
+  font-size: 18px;
 }
-
-.transaction-name {
-  font-size: 14px;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-.transaction-time {
-  font-size: 12px;
-  color: #6b7280;
-  margin-top: 2px;
-}
-
-.transaction-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.transaction-amount {
-  font-size: 14px;
-  font-weight: 700;
-  color: #1f2937;
-}
-
+.transaction-name { font-size: 14px; font-weight: 500; color: #ffffff; }
+.transaction-time { font-size: 12px; color: #6B6B80; }
+.transaction-right { display: flex; align-items: center; gap: 12px; }
+.transaction-amount { font-size: 14px; font-weight: 600; color: #ef4444; }
 .delete-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   border: none;
-  background: #fee2e2;
+  background: rgba(239,68,68,0.15);
   color: #ef4444;
-  font-size: 18px;
+  font-size: 16px;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
+  transition: background 0.2s;
 }
+.delete-btn:hover { background: rgba(239,68,68,0.25); }
 
-.delete-btn:hover {
-  background: #fecaca;
-}
-
-.btn-add,
-.btn-settings {
+/* ——— Кнопки ——— */
+.btn-add {
   width: 100%;
   padding: 16px;
   font-size: 16px;
   font-weight: 600;
-  border-radius: 12px;
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
   border: none;
   margin-bottom: 12px;
+  background: linear-gradient(135deg, #F5A623, #E0941A);
+  color: #0B0B10;
 }
+.btn-add:hover { transform: scale(1.01); box-shadow: 0 8px 24px rgba(245,166,35,0.2); }
+.btn-add:active { transform: scale(0.97); }
 
-.btn-add {
-  background: #4f46e5;
-  color: white;
-}
-
-.btn-add:hover {
-  background: #4338ca;
-}
-
-.btn-settings {
-  background: #f3f4f6;
-  color: #374151;
-}
-
-.btn-settings:hover {
-  background: #e5e7eb;
-}
-
-/* Сетка кнопок редактирования */
 .edit-buttons-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
   margin-bottom: 12px;
 }
-
 .btn-edit {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
   padding: 14px 12px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
+  background: #16161F;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  color: #C0C0D0;
+}
+.btn-edit:hover { background: #1E1E2A; border-color: rgba(255,255,255,0.1); }
+.btn-edit:active { transform: scale(0.97); }
+.btn-edit-icon { font-size: 18px; }
+.btn-edit-text { font-size: 13px; }
+
+.btn-settings {
+  width: 100%;
+  padding: 16px;
   font-size: 15px;
   font-weight: 500;
-  color: #1e293b;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  background: rgba(255,255,255,0.04);
+  color: #8E8EA0;
 }
+.btn-settings:hover { background: rgba(255,255,255,0.08); }
 
-.btn-edit:hover {
-  background: #f1f5f9;
-  border-color: #cbd5e1;
-}
-
-.btn-edit:active {
-  transform: scale(0.97);
-}
-
-.btn-edit-icon {
-  font-size: 20px;
+/* ——— Адаптив ——— */
+@media (max-width: 420px) {
+  .container { padding: 16px; }
+  .limit-amount { font-size: 44px; }
+  .metrics { gap: 6px; }
+  .metric-value { font-size: 17px; }
+  .btn-edit-text { font-size: 12px; }
 }
 </style>

@@ -93,36 +93,14 @@
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
-  goal: {
-    type: String,
-    default: ''
-  },
-  goalAmount: {
-    type: Number,
-    default: 0
-  },
-  savingsPercent: {
-    type: Number,
-    default: 0
-  },
-  customGoalName: {
-    type: String,
-    default: ''
-  },
-  income: {
-    type: Number,
-    default: 0
-  },
-  expenses: {
-    type: Object,
-    default: () => ({})
-  },
-  customExpenses: {
-    type: Array,
-    default: () => []
-  }
+  goal: { type: String, default: '' },
+  goalAmount: { type: Number, default: 0 },
+  savingsPercent: { type: Number, default: 0 },
+  customGoalName: { type: String, default: '' },
+  income: { type: Number, default: 0 },
+  expenses: { type: Object, default: () => ({}) },
+  customExpenses: { type: Array, default: () => [] }
 })
-
 const emit = defineEmits(['close', 'save'])
 
 const goalOptions = [
@@ -143,10 +121,8 @@ const totalExpenses = computed(() => {
   const custom = props.customExpenses.reduce((sum, item) => sum + (Number(item.amount) || 0), 0)
   return base + custom
 })
-
 const freeMoney = computed(() => (Number(props.income) || 0) - totalExpenses.value)
 
-// В секции <script setup>
 function formatMoney(amount) {
   return new Intl.NumberFormat('ru-RU').format(Math.round(Math.abs(amount || 0)))
 }
@@ -175,7 +151,6 @@ onMounted(() => {
 
 function selectGoal(goalId) {
   localGoal.value = goalId
-  // Устанавливаем дефолтную сумму если ещё не выбрана
   if (localGoalAmount.value === 0) {
     const defaults = {
       safety: totalExpenses.value * 3,
@@ -204,295 +179,238 @@ function save() {
 <style scoped>
 .editor-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
 }
-
 .editor-modal {
-  background: white;
-  border-radius: 20px;
+  background: #16161F;
+  border-radius: 24px;
   width: 100%;
   max-width: 450px;
   max-height: 85vh;
   overflow-y: auto;
-  animation: slideUp 0.3s ease;
+  border: 1px solid rgba(255,255,255,0.05);
 }
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
   position: sticky;
   top: 0;
-  background: white;
+  background: #16161F;
   z-index: 10;
 }
-
 .editor-header h2 {
   margin: 0;
   font-size: 20px;
-  color: #1f2937;
+  font-weight: 700;
+  color: #ffffff;
 }
-
 .close-btn {
   background: none;
   border: none;
+  color: #6B6B80;
   font-size: 28px;
-  color: #6b7280;
   cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0 8px;
 }
-
 .close-btn:hover {
-  color: #1f2937;
+  color: #ffffff;
 }
-
 .editor-content {
   padding: 24px;
 }
-
 .input-group {
   margin-bottom: 20px;
 }
-
 .input-label {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #6b7280;
+  color: #8E8EA0;
   margin-bottom: 12px;
 }
-
 .goals-list {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
-
 .goal-option {
   display: flex;
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  background: #f9fafb;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  background: #1E1E2A;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 16px;
   cursor: pointer;
   transition: all 0.2s;
 }
-
 .goal-option.active {
-  background: #eef2ff;
-  border-color: #4f46e5;
+  border-color: #F5A623;
+  background: #2A2A38;
 }
-
 .goal-option:hover {
-  border-color: #a5b4fc;
+  border-color: rgba(245, 166, 35, 0.3);
 }
-
 .goal-icon {
   font-size: 24px;
 }
-
 .goal-info {
   flex: 1;
 }
-
 .goal-name {
   font-size: 15px;
   font-weight: 600;
-  color: #1f2937;
+  color: #ffffff;
 }
-
 .text-input {
   width: 100%;
   padding: 14px;
   font-size: 16px;
   text-align: left;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
   outline: none;
-  transition: border-color 0.2s;
+  background: #1E1E2A;
+  color: #ffffff;
   box-sizing: border-box;
+  transition: border-color 0.2s;
 }
-
 .text-input:focus {
-  border-color: #4f46e5;
+  border-color: #F5A623;
 }
-
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .editor-input {
   width: 100%;
-  padding: 14px 50px 14px 14px;
+  padding: 14px 60px 14px 14px;
   font-size: 20px;
   font-weight: 700;
   text-align: right;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
   outline: none;
+  background: #1E1E2A;
+  color: #ffffff;
   transition: border-color 0.2s;
 }
-
 .editor-input:focus {
-  border-color: #4f46e5;
+  border-color: #F5A623;
 }
-
 .currency {
   position: absolute;
   right: 14px;
   font-size: 18px;
   font-weight: 600;
-  color: #6b7280;
+  color: #6B6B80;
   pointer-events: none;
 }
-
 .percent-value {
-  color: #4f46e5;
+  color: #F5A623;
   font-size: 18px;
 }
-
 .percent-slider {
   width: 100%;
-  height: 8px;
-  background: #e5e7eb;
+  height: 6px;
+  background: rgba(255,255,255,0.1);
   border-radius: 4px;
   outline: none;
   -webkit-appearance: none;
 }
-
 .percent-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 24px;
-  height: 24px;
-  background: #4f46e5;
+  width: 20px;
+  height: 20px;
+  background: #F5A623;
   border-radius: 50%;
   cursor: pointer;
 }
-
 .slider-hint {
   font-size: 13px;
-  color: #6b7280;
+  color: #6B6B80;
   margin-top: 8px;
 }
-
 .projection-card {
-  background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 100%);
+  background: #1E1E2A;
   border-radius: 16px;
   padding: 20px;
   text-align: center;
   margin-top: 16px;
 }
-
 .projection-title {
   font-size: 13px;
-  color: #6b7280;
+  color: #8E8EA0;
   margin-bottom: 8px;
 }
-
 .projection-value {
   font-size: 28px;
   font-weight: 700;
-  color: #4f46e5;
+  color: #F5A623;
 }
-
 .warning-card {
-  background: #fee2e2;
-  border: 1px solid #fecaca;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 16px;
   padding: 20px;
   text-align: center;
   margin-top: 16px;
 }
-
 .warning-icon {
   font-size: 32px;
   margin-bottom: 8px;
 }
-
 .warning-text {
   font-size: 14px;
-  color: #dc2626;
+  color: #ef4444;
   line-height: 1.5;
 }
-
 .editor-actions {
   display: flex;
   gap: 12px;
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
-  position: sticky;
-  bottom: 0;
-  background: white;
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
-
 .cancel-btn,
 .save-btn {
   flex: 1;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 16px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  border: none;
   transition: all 0.2s;
 }
-
 .cancel-btn {
-  background: #f3f4f6;
-  color: #6b7280;
-  border: none;
+  background: rgba(255,255,255,0.06);
+  color: #8E8EA0;
 }
-
 .cancel-btn:hover {
-  background: #e5e7eb;
+  background: rgba(255,255,255,0.1);
 }
-
 .save-btn {
-  background: #4f46e5;
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, #F5A623, #E0941A);
+  color: #0B0B10;
 }
-
 .save-btn:hover {
-  background: #4338ca;
+  transform: scale(1.01);
 }
-
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-
 input[type="number"] {
   -moz-appearance: textfield;
 }

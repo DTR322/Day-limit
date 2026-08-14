@@ -69,21 +69,13 @@
 import { ref, computed, onMounted } from 'vue'
 
 const props = defineProps({
-  totalDebt: {
-    type: Number,
-    default: 0
-  },
-  totalSavings: {
-    type: Number,
-    default: 0
-  }
+  totalDebt: { type: Number, default: 0 },
+  totalSavings: { type: Number, default: 0 }
 })
-
 const emit = defineEmits(['close', 'save'])
 
 const localTotalDebt = ref(props.totalDebt)
 const localTotalSavings = ref(props.totalSavings)
-
 const netValue = computed(() => localTotalSavings.value - localTotalDebt.value)
 
 onMounted(() => {
@@ -106,215 +98,168 @@ function save() {
 <style scoped>
 .editor-modal-overlay {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.6);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 20px;
 }
-
 .editor-modal {
-  background: white;
-  border-radius: 20px;
+  background: #16161F;
+  border-radius: 24px;
   width: 100%;
   max-width: 400px;
   overflow: hidden;
-  animation: slideUp 0.3s ease;
+  border: 1px solid rgba(255,255,255,0.05);
 }
-
-@keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
 .editor-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-
 .editor-header h2 {
   margin: 0;
   font-size: 20px;
-  color: #1f2937;
+  font-weight: 700;
+  color: #ffffff;
 }
-
 .close-btn {
   background: none;
   border: none;
+  color: #6B6B80;
   font-size: 28px;
-  color: #6b7280;
   cursor: pointer;
-  padding: 0;
-  width: 32px;
-  height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 0 8px;
 }
-
 .close-btn:hover {
-  color: #1f2937;
+  color: #ffffff;
 }
-
 .editor-content {
   padding: 24px;
 }
-
 .input-group {
   margin-bottom: 20px;
 }
-
 .input-label {
   display: block;
   font-size: 14px;
   font-weight: 600;
-  color: #6b7280;
+  color: #8E8EA0;
   margin-bottom: 8px;
 }
-
 .input-wrapper {
   position: relative;
   display: flex;
   align-items: center;
 }
-
 .editor-input {
   width: 100%;
-  padding: 16px 50px 16px 16px;
+  padding: 16px 60px 16px 16px;
   font-size: 24px;
   font-weight: 700;
   text-align: right;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
   outline: none;
+  background: #1E1E2A;
+  color: #ffffff;
   transition: border-color 0.2s;
 }
-
 .editor-input:focus {
-  border-color: #4f46e5;
+  border-color: #F5A623;
 }
-
 .currency {
   position: absolute;
   right: 16px;
   font-size: 20px;
   font-weight: 600;
-  color: #6b7280;
+  color: #6B6B80;
   pointer-events: none;
 }
-
 .hint {
   font-size: 12px;
-  color: #9ca3af;
+  color: #6B6B80;
   margin-top: 8px;
 }
-
 .balance-summary {
-  background: #f9fafb;
+  background: #1E1E2A;
   border-radius: 16px;
   padding: 20px;
   margin-top: 24px;
 }
-
 .balance-summary.in-debt {
-  background: #fef2f2;
+  background: rgba(239, 68, 68, 0.08);
 }
-
 .balance-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 12px 0;
 }
-
 .balance-item:not(:last-child) {
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
 }
-
 .balance-label {
   font-size: 14px;
-  color: #6b7280;
+  color: #8E8EA0;
 }
-
 .balance-value {
   font-size: 20px;
   font-weight: 700;
 }
-
 .balance-value.positive {
-  color: #10b981;
+  color: #4cd964;
 }
-
 .balance-value.negative {
   color: #ef4444;
 }
-
 .balance-divider {
   text-align: center;
   font-size: 18px;
   font-weight: 700;
-  color: #9ca3af;
+  color: #6B6B80;
   padding: 8px 0;
 }
-
 .editor-actions {
   display: flex;
   gap: 12px;
-  padding: 20px 24px;
-  border-top: 1px solid #e5e7eb;
+  padding: 16px 24px 24px;
+  border-top: 1px solid rgba(255,255,255,0.05);
 }
-
 .cancel-btn,
 .save-btn {
   flex: 1;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 16px;
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
+  border: none;
   transition: all 0.2s;
 }
-
 .cancel-btn {
-  background: #f3f4f6;
-  color: #6b7280;
-  border: none;
+  background: rgba(255,255,255,0.06);
+  color: #8E8EA0;
 }
-
 .cancel-btn:hover {
-  background: #e5e7eb;
+  background: rgba(255,255,255,0.1);
 }
-
 .save-btn {
-  background: #4f46e5;
-  color: white;
-  border: none;
+  background: linear-gradient(135deg, #F5A623, #E0941A);
+  color: #0B0B10;
 }
-
 .save-btn:hover {
-  background: #4338ca;
+  transform: scale(1.01);
 }
-
 input[type="number"]::-webkit-inner-spin-button,
 input[type="number"]::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
-
 input[type="number"] {
   -moz-appearance: textfield;
 }
